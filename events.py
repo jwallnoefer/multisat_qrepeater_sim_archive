@@ -82,6 +82,9 @@ class EventQueue(object):
     def __str__(self):
         return "EventQueue: " + str(self.queue)
 
+    def __len__(self):
+        return len(self.queue)
+
     def add_event(self, event):
         """Add an event to the queue.
 
