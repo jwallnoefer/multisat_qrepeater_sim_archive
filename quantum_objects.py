@@ -31,7 +31,9 @@ class WorldObject(ABC):
         self.world = world
         self.world.register_world_object(self)
 
-    def __del__(self):
+    def destroy(self):
+        """Remove this WordlObject from the world."""
+        # in the future it might be nice to also remove associated events etc.
         self.world.deregister_world_object(self)
 
     @property
@@ -150,7 +152,7 @@ class Station(WorldObject):
     ----------
     world : World
         This WorldObject is an object in this world.
-    id : int
+    id : int0
         Numerical label for the station.
     position : scalar
         Position in meters in the 1D line for this linear repeater.
