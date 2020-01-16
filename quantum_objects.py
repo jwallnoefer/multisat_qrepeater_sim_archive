@@ -1,6 +1,7 @@
 import sys
 import abc
 from abc import abstractmethod
+from warnings import warn
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -24,12 +25,14 @@ class WorldObject(ABC):
     ----------
     world : World
     event_queue : EventQueue
+    last_updated : scalar
 
     """
 
     def __init__(self, world):
         self.world = world
         self.world.register_world_object(self)
+        self.last_updated = self.event_queue.current_time
 
     def destroy(self):
         """Remove this WordlObject from the world."""
@@ -47,6 +50,13 @@ class WorldObject(ABC):
 
         """
         return self.world.event_queue
+
+    def _on_update_time(self):
+        pass
+
+    def update_time(self):  # to be used to update internal time
+        self._on_update_time()
+        self.last_updated = self.event_queue.current_time
 
 
 class Qubit(WorldObject):
@@ -76,6 +86,11 @@ class Qubit(WorldObject):
 
     def __str__(self):
         return "Qubit at station %s, part of pair %s." % (str(self.station), str(self.pair))
+
+    def destroy(self):
+        # station needs to be notified that qubit is no longer there, not sure how to handle pairs yet
+        self.station.remove_qubit(self)
+        super(Qubit, self).destroy()
 
 
 class Pair(WorldObject):
@@ -163,13 +178,15 @@ class Station(WorldObject):
         Numerical label for the station.
     position : scalar
         Position in meters in the 1D line for this linear repeater.
+    qubits : list of Qubit objects
+        The qubits currently at this position.
 
     """
 
     def __init__(self, world, id, position):
         self.id = id
         self.position = position
-        # self.qubits = []
+        self.qubits = []
         super(Station, self).__init__(world)
 
     def __str__(self):
@@ -185,8 +202,14 @@ class Station(WorldObject):
 
         """
         new_qubit = Qubit(world=self.world, station=self)
-        # self.qubits += [new_qubit]
+        self.qubits += [new_qubit]
         return new_qubit
+
+    def remove_qubit(self, qubit):
+        try:
+            self.qubits.remove(qubit)
+        except ValueError:
+            warn("Tried to remove qubit %s from station %s, but the station was not tracking that qubit." % (repr(qubit), repr(self)))
 
 
 class Source(WorldObject):
