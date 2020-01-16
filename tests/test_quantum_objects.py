@@ -13,9 +13,13 @@ class TestQuantumObjects(unittest.TestCase):
         self.assertIsInstance(quantum_object, WorldObject)
         # assert that quantum object is registered
         self.assertIn(quantum_object, self.world.world_objects[quantum_object.__class__.__name__])
-        # assert that object is in test world and has correct evenetqueue
+        # assert that object is in test world and has correct event queue
         self.assertIs(quantum_object.world, self.world)
         self.assertIs(quantum_object.event_queue, self.world.event_queue)
+        # see if updating time works as expected
+        self.world.event_queue.current_time = 1  # artificially advance time 1 second
+        quantum_object.update_time()
+        self.assertEqual(quantum_object.last_updated, self.world.event_queue.current_time)
 
     def test_qubit(self):
         qubit = Qubit(world=self.world, station=MagicMock())
@@ -31,7 +35,11 @@ class TestQuantumObjects(unittest.TestCase):
         self._aux_general_test(station)
         qubit = station.create_qubit()
         self.assertIsInstance(qubit, Qubit)
+        self.assertIn(qubit, station.qubits)
         self.assertIs(qubit.station, station)
+        # now test if destroying the qubit properly deregisters it
+        qubit.destroy()
+        self.assertNotIn(qubit, station.qubits)
 
     def test_source(self):
         stations = [Station(world=self.world, id=i, position=200 * i) for i in range(2)]
