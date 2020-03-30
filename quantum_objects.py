@@ -2,6 +2,7 @@ import sys
 import abc
 from abc import abstractmethod
 from warnings import warn
+from aux_functions import apply_single_qubit_map
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -159,6 +160,15 @@ class Pair(WorldObject):
     def qubit2(self, qubit):
         self.qubits[1] = qubit
 
+    def _on_update_time(self):
+        time_interval = self.event_queue.current_time - self.last_updated
+        map0 = self.qubits[0]
+        if map0 is not None:
+            self.state = apply_single_qubit_map(map_func=map0, qubit_index=0, rho=self.state, t=time_interval)
+        map1 = self.qubits[1]
+        if map1 is not None:
+            self.state = apply_single_qubit_map(map_func=map1, qubit_index=1, rho=self.state, t=time_interval)
+
 
 class Station(WorldObject):
     """A repeater station.
@@ -183,10 +193,11 @@ class Station(WorldObject):
 
     """
 
-    def __init__(self, world, id, position):
+    def __init__(self, world, id, position, memory_noise=None):
         self.id = id
         self.position = position
         self.qubits = []
+        self.memory_noise = memory_noise
         super(Station, self).__init__(world)
 
     def __str__(self):
