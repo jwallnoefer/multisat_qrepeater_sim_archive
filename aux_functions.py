@@ -22,3 +22,12 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
         my_slice = idx[:qubit_index] + (slice(None),) + idx[qubit_index:n-1+qubit_index] + (slice(None),) + idx[n-1+qubit_index:]
         out[my_slice] = map_func(rho[my_slice], *args, **kwargs)
     return out.reshape((2**n,2**n))
+
+def x_noise_channel(rho, epsilon):
+    return (1 - epsilon) rho + epsilon * np.dot(np.dot(mat.X, rho), mat.H(mat.X))
+
+def y_noise_channel(rho, epsilon):
+    return (1 - epsilon) rho + epsilon * np.dot(np.dot(mat.Y, rho), mat.H(mat.Y))
+
+def z_noise_channel(rho, epsilon):
+    return (1 - epsilon) rho + epsilon * np.dot(np.dot(mat.Z, rho), mat.H(mat.Z))
