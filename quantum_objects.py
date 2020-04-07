@@ -162,10 +162,10 @@ class Pair(WorldObject):
 
     def _on_update_time(self):
         time_interval = self.event_queue.current_time - self.last_updated
-        map0 = self.qubits[0]
+        map0 = self.qubits[0].station.memory_noise
         if map0 is not None:
             self.state = apply_single_qubit_map(map_func=map0, qubit_index=0, rho=self.state, t=time_interval)
-        map1 = self.qubits[1]
+        map1 = self.qubits[1].station.memory_noise
         if map1 is not None:
             self.state = apply_single_qubit_map(map_func=map1, qubit_index=1, rho=self.state, t=time_interval)
 

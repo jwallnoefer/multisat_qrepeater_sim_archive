@@ -99,12 +99,15 @@ if __name__ == "__main__":
     right_pair = world.world_objects["Pair"][1]
     assert left_pair.qubits[1].station is station_central
     assert right_pair.qubits[0].station is station_central
+    left_pair.update_time()
+    right_pair.update_time()
     four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
     # non-ideal-bell-measurement
     four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
     my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
     two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
     new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state)
+
     # cleanup
     left_pair.qubits[1].destroy()
     right_pair.qubits[0].destroy()
