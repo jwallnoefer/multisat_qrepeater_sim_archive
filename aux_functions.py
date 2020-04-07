@@ -1,4 +1,5 @@
 import numpy as np
+import libs.matrix as mat
 
 def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
     """Applies a single-qubit map to a density matrix of n qubits.
@@ -24,10 +25,10 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
     return out.reshape((2**n,2**n))
 
 def x_noise_channel(rho, epsilon):
-    return (1 - epsilon) rho + epsilon * np.dot(np.dot(mat.X, rho), mat.H(mat.X))
+    return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.X, rho), mat.H(mat.X))
 
 def y_noise_channel(rho, epsilon):
-    return (1 - epsilon) rho + epsilon * np.dot(np.dot(mat.Y, rho), mat.H(mat.Y))
+    return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.Y, rho), mat.H(mat.Y))
 
 def z_noise_channel(rho, epsilon):
-    return (1 - epsilon) rho + epsilon * np.dot(np.dot(mat.Z, rho), mat.H(mat.Z))
+    return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.Z, rho), mat.H(mat.Z))

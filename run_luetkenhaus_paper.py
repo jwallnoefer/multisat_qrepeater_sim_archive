@@ -1,6 +1,6 @@
-from quantum_objects import Source, Station
+from quantum_objects import Source, Station, Pair
 from world import World
-from events import SourceEvent
+from events import SourceEvent, GenericEvent
 import libs.matrix as mat
 import numpy as np
 from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel
@@ -61,15 +61,16 @@ def construct_dephasing_noise_channel(dephasing_time):
     return dephasing_noise_channel
 
 def luetkenhaus_time_distribution(source):
-    eta_effective = 1 - (1 - ETA_TOT) * (1 - P_D)**2
-    comm_distance = np.max(np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position))
+    comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
+    eta = ETA_TOT * np.exp(-comm_distance / L_ATT)
+    eta_effective = 1 - (1 - eta) * (1 - P_D)**2
     trial_time = T_P + 2 * comm_distance / C  # I don't think that paper uses latency time and loading time?
     return np.random.geometric(eta_effective) * trial_time
 
 def luetkenhaus_state_generation(source):
     state = np.dot(mat.phiplus, mat.H(mat.phiplus))
     # TODO needs more sophisticated handling for other scenarios - especially if not only the central station is faulty
-    comm_distance = np.max(np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position))
+    comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
     storage_time = 2 * comm_distance / C
     for idx, station in enumerate(source.target_stations):
         if station.memory_noise is not None:
@@ -79,13 +80,33 @@ def luetkenhaus_state_generation(source):
     return state
 
 
-if __name__ = "__main__":
+if __name__ == "__main__":
     world = World()
     station_A = Station(world, id=0, position=0, memory_noise=None)
     station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
     station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
-    source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution)
-    source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution)
+    source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
+    source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
 
-    # state generation loop
-    
+    # state generation loop - this is for sequential loading so far
+    event_A = source_A.schedule_event()
+    event_schedule_B = GenericEvent(time=event_A.time, resolve_function=source_B.schedule_event)
+    world.event_queue.add_event(event_schedule_B)
+    while world.event_queue.queue:
+        world.event_queue.resolve_next_event()
+    # then do entanglement swapping
+    left_pair = world.world_objects["Pair"][0]
+    right_pair = world.world_objects["Pair"][1]
+    assert left_pair.qubits[1].station is station_central
+    assert right_pair.qubits[0].station is station_central
+    four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
+    # non-ideal-bell-measurement
+    four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+    my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
+    two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
+    new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state)
+    # cleanup
+    left_pair.qubits[1].destroy()
+    right_pair.qubits[0].destroy()
+    left_pair.destroy()
+    right_pair.destroy()
