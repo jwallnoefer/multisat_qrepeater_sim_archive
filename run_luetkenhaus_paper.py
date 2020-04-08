@@ -4,6 +4,7 @@ from events import SourceEvent, GenericEvent
 import libs.matrix as mat
 import numpy as np
 from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel
+import matplotlib.pyplot as plt
 
 
 ETA_P = 0.66  # preparation efficiency
@@ -88,28 +89,55 @@ if __name__ == "__main__":
     source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
     source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
 
+    time_list = []
+    fidelity_list = []
+    plt.ion()
     # state generation loop - this is for sequential loading so far
-    event_A = source_A.schedule_event()
-    event_schedule_B = GenericEvent(time=event_A.time, resolve_function=source_B.schedule_event)
-    world.event_queue.add_event(event_schedule_B)
-    while world.event_queue.queue:
-        world.event_queue.resolve_next_event()
-    # then do entanglement swapping
-    left_pair = world.world_objects["Pair"][0]
-    right_pair = world.world_objects["Pair"][1]
-    assert left_pair.qubits[1].station is station_central
-    assert right_pair.qubits[0].station is station_central
-    left_pair.update_time()
-    right_pair.update_time()
-    four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
-    # non-ideal-bell-measurement
-    four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
-    my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
-    two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
-    new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state)
+    for i_loop in range(1000):
+        event_A = source_A.schedule_event()
+        event_schedule_B = GenericEvent(time=event_A.time, resolve_function=source_B.schedule_event)
+        world.event_queue.add_event(event_schedule_B)
+        while world.event_queue.queue:
+            world.event_queue.resolve_next_event()
+        # then do entanglement swapping
+        left_pair = world.world_objects["Pair"][0]
+        right_pair = world.world_objects["Pair"][1]
+        assert left_pair.qubits[1].station is station_central
+        assert right_pair.qubits[0].station is station_central
+        left_pair.update_time()
+        right_pair.update_time()
+        four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
+        # non-ideal-bell-measurement
+        four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+        my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
+        two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
+        two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
+        new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state)
+        comm_distance = np.max([np.abs(left_pair.qubits[1].station.position - left_pair.qubits[0].station.position), np.abs(right_pair.qubits[1].station.position - right_pair.qubits[0].station.position)])
+        world.event_queue.current_time += comm_distance / C
+        # cleanup
+        left_pair.qubits[1].destroy()
+        right_pair.qubits[0].destroy()
+        left_pair.destroy()
+        right_pair.destroy()
 
-    # cleanup
-    left_pair.qubits[1].destroy()
-    right_pair.qubits[0].destroy()
-    left_pair.destroy()
-    right_pair.destroy()
+        pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), new_pair.state), mat.phiplus)[0, 0]
+        time_list += [world.event_queue.current_time]
+        fidelity_list += [pair_fidelity]
+
+        new_pair.qubits[0].destroy()
+        new_pair.qubits[1].destroy()
+        new_pair.destroy()
+
+        if i_loop % 10 == 0:
+            plt.cla()
+            plt.scatter(time_list, fidelity_list)
+            plt.ylim(0, 1)
+            plt.xlim(0)
+            plt.xlabel("Time (in seconds)")
+            plt.ylabel("Fidelity")
+            plt.grid()
+            plt.show()
+            plt.pause(0.002)
+
+    input("Input something to continue.")
