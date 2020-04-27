@@ -136,6 +136,6 @@ class EventQueue(object):
 
         """
         event = self.queue[0]
-        event.resolve()
         self.current_time = event.time
+        event.resolve()
         self.queue = self.queue[1:]

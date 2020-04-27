@@ -54,7 +54,7 @@ class SchedulingSource(Source):
 
 def construct_dephasing_noise_channel(dephasing_time):
     def lambda_dp(t):
-        return (1 - np.exp(-t/(2*dephasing_time))) / 2
+        return (1 - np.exp(-t/dephasing_time)) / 2
 
     def dephasing_noise_channel(rho, t):
         return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
@@ -94,7 +94,7 @@ def binary_entropy(p):
 def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_interval):
     e_z = 1 - np.sum(correlations_z)/len(correlations_z)
     e_x = 1 - np.sum(correlations_x)/len(correlations_x)
-    return len(correlations_z) / time_interval * (1 - binary_entropy(e_z) - err_corr_ineff * binary_entropy(e_x))
+    return len(correlations_z) / time_interval * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
 
 # def calculate_keyrate_channel_use():
 #     pass
@@ -177,6 +177,8 @@ if __name__ == "__main__":
 
             ax2.clear()
             ax2.set_xlim(*ax1.get_xlim())
+            ax2.set_yscale("log")
+            # ax2.set_ylim(10**-7, 10**-3)
             ax2.plot(time_list, key_rate_time_list)
             ax2.grid()
             ax2.set_xlabel("Time (in seconds)")
