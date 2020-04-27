@@ -69,9 +69,11 @@ class SourceEvent(Event):
 
     """
 
-    def __init__(self, time, source, initial_state):
+    def __init__(self, time, source, initial_state, *args, **kwargs):
         self.source = source
         self.initial_state = initial_state
+        self.generation_args = args
+        self.generation_kwargs = kwargs
         super(SourceEvent, self).__init__(time)
 
     def __repr__(self):
@@ -82,7 +84,7 @@ class SourceEvent(Event):
 
         Generates a pair at the target stations of `self.source`
         """
-        self.source.generate_pair(self.initial_state)
+        self.source.generate_pair(self.initial_state, *self.generation_args, **self.generation_kwargs)
 
 
 class EventQueue(object):

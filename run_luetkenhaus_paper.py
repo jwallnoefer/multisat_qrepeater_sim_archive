@@ -19,7 +19,7 @@ ETA_D = 0.3  # detector efficiency
 P_BSM = 1  # BSM success probability
 LAMBDA_BSM = 0.97  # BSM ideality parameter
 F = 1.16  # error correction inefficiency
-L_TOT = 66 * 10**3  # total distance between A and B
+L_TOT = 33 * 10**3  # total distance between A and B
 
 ETA_TOT = ETA_P * ETA_C * ETA_D
 
@@ -45,10 +45,10 @@ class SchedulingSource(Source):
         super(SchedulingSource, self).__init__(world, position, target_stations)
 
     def schedule_event(self):
-        time_delay = self.time_distribution(source=self)
+        time_delay, times_tried = self.time_distribution(source=self)
         scheduled_time = self.event_queue.current_time + time_delay
         initial_state = self.state_generation(source=self)  # should accurately describe state at the scheduled time
-        source_event = SourceEvent(time=scheduled_time, source=self, initial_state=initial_state)
+        source_event = SourceEvent(time=scheduled_time, source=self, initial_state=initial_state, initial_cost_add=times_tried, initial_cost_max=times_tried)
         self.event_queue.add_event(source_event)
         return source_event
 
@@ -66,7 +66,8 @@ def luetkenhaus_time_distribution(source):
     eta = ETA_TOT * np.exp(-comm_distance / L_ATT)
     eta_effective = 1 - (1 - eta) * (1 - P_D)**2
     trial_time = T_P + 2 * comm_distance / C  # I don't think that paper uses latency time and loading time?
-    return np.random.geometric(eta_effective) * trial_time
+    random_num = np.random.geometric(eta_effective)
+    return random_num * trial_time, random_num
 
 def luetkenhaus_state_generation(source):
     state = np.dot(mat.phiplus, mat.H(mat.phiplus))
@@ -96,8 +97,10 @@ def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_
     e_x = 1 - np.sum(correlations_x)/len(correlations_x)
     return len(correlations_z) / time_interval * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
 
-# def calculate_keyrate_channel_use():
-#     pass
+def calculate_keyrate_channel_use(correlations_x, correlations_z, err_corr_ineff, resource_list):
+    e_z = 1 - np.sum(correlations_z)/len(correlations_z)
+    e_x = 1 - np.sum(correlations_x)/len(correlations_x)
+    return len(correlations_z) / np.sum(resource_list) * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
 
 if __name__ == "__main__":
     world = World()
@@ -112,8 +115,10 @@ if __name__ == "__main__":
     correlations_z_list = []
     correlations_x_list = []
     key_rate_time_list = []
+    resource_cost_max_list = []
+    key_rate_resources_max_list = []
     plt.ion()
-    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1)
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
     fig.tight_layout(pad=3.0)
     # state generation loop - this is for sequential loading so far
     for i_loop in range(1000):
@@ -135,7 +140,7 @@ if __name__ == "__main__":
         my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
         two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
         two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
-        new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state)
+        new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state, initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add, initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
         comm_distance = np.max([np.abs(left_pair.qubits[1].station.position - left_pair.qubits[0].station.position), np.abs(right_pair.qubits[1].station.position - right_pair.qubits[0].station.position)])
         world.event_queue.current_time += comm_distance / C
         # cleanup
@@ -160,6 +165,9 @@ if __name__ == "__main__":
 
         key_rate_time_list += [calculate_keyrate_time(correlations_z_list, correlations_x_list, F, world.event_queue.current_time)]
 
+        resource_cost_max_list += [new_pair.resource_cost_max]
+        key_rate_resources_max_list += [calculate_keyrate_channel_use(correlations_z_list, correlations_x_list, F, resource_cost_max_list)]
+
         new_pair.qubits[0].destroy()
         new_pair.qubits[1].destroy()
         new_pair.destroy()
@@ -182,7 +190,16 @@ if __name__ == "__main__":
             ax2.plot(time_list, key_rate_time_list)
             ax2.grid()
             ax2.set_xlabel("Time (in seconds)")
-            ax2.set_ylabel("averaged key rate until now")
+            ax2.set_ylabel("averaged key rate per time so far")
+
+            ax3.clear()
+            ax3.set_xlim(*ax1.get_xlim())
+            ax3.set_yscale("log")
+            # ax2.set_ylim(10**-7, 10**-3)
+            ax3.plot(time_list, key_rate_resources_max_list)
+            ax3.grid()
+            ax3.set_xlabel("Time (in seconds)")
+            ax3.set_ylabel("averaged key rate per channel use so far")
 
             plt.show()
             plt.pause(0.002)

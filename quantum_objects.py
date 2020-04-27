@@ -119,12 +119,14 @@ class Pair(WorldObject):
 
     """
 
-    def __init__(self, world, qubits, initial_state):
+    def __init__(self, world, qubits, initial_state, initial_cost_add=None, initial_cost_max=None):
         # maybe add a check that qubits are always in the same order?
         self.qubits = qubits
         self.state = initial_state
         self.qubit1.pair = self
         self.qubit2.pair = self
+        self.resource_cost_add = initial_cost_add
+        self.resource_cost_max = initial_cost_max
         super(Pair, self).__init__(world)
 
     # not sure we actually need to be able to change qubits
@@ -251,7 +253,7 @@ class Source(WorldObject):
         self.target_stations = target_stations
         super(Source, self).__init__(world)
 
-    def generate_pair(self, initial_state):
+    def generate_pair(self, initial_state, initial_cost_add=None, initial_cost_max=None):
         """Generate an entangled pair.
 
         The Pair will be generated in the `initial_state` at the
@@ -273,4 +275,4 @@ class Source(WorldObject):
         station2 = self.target_stations[1]
         qubit1 = station1.create_qubit()
         qubit2 = station2.create_qubit()
-        return Pair(world=self.world, qubits=[qubit1, qubit2], initial_state=initial_state)
+        return Pair(world=self.world, qubits=[qubit1, qubit2], initial_state=initial_state, initial_cost_add=initial_cost_add, initial_cost_max=initial_cost_max)
