@@ -3,7 +3,7 @@ from world import World
 from events import SourceEvent, GenericEvent
 import libs.matrix as mat
 import numpy as np
-from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel
+from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel
 import matplotlib.pyplot as plt
 
 
@@ -54,7 +54,7 @@ class SchedulingSource(Source):
 
 def construct_dephasing_noise_channel(dephasing_time):
     def lambda_dp(t):
-        return (1 - np.exp(-t/dephasing_time)) / 2
+        return (1 - np.exp(-t/(2*dephasing_time))) / 2
 
     def dephasing_noise_channel(rho, t):
         return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
@@ -77,9 +77,27 @@ def luetkenhaus_state_generation(source):
         if station.memory_noise is not None:
             state = apply_single_qubit_map(map_func=station.memory_noise, qubit_index=idx, rho=state, t=storage_time)
         # misalignment
-        state = apply_single_qubit_map(map_func=y_noise_channel, qubit_index=idx, rho=state, epsilon=E_M_A)
+        if station.position == 0 or station.position == L_TOT:  # only count misalignment and dark counts for end stations
+            state = apply_single_qubit_map(map_func=y_noise_channel, qubit_index=idx, rho=state, epsilon=E_M_A)
+            eta = ETA_TOT * np.exp(-comm_distance / L_ATT)
+            eta_effective = 1 - (1 - eta) * (1 - P_D)**2
+            alpha_of_eta = eta * (1 - P_D) / eta_effective
+            state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta)
     return state
 
+# def noisy_bell_measurement(left_pair, right_pair, noise_channel)
+#     pass
+
+def binary_entropy(p):
+    return -p * np.log2(p) - (1 - p) * np.log2((1 - p))
+
+def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_interval):
+    e_z = 1 - np.sum(correlations_z)/len(correlations_z)
+    e_x = 1 - np.sum(correlations_x)/len(correlations_x)
+    return len(correlations_z) / time_interval * (1 - binary_entropy(e_z) - err_corr_ineff * binary_entropy(e_x))
+
+# def calculate_keyrate_channel_use():
+#     pass
 
 if __name__ == "__main__":
     world = World()
@@ -91,7 +109,12 @@ if __name__ == "__main__":
 
     time_list = []
     fidelity_list = []
+    correlations_z_list = []
+    correlations_x_list = []
+    key_rate_time_list = []
     plt.ion()
+    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1)
+    fig.tight_layout(pad=3.0)
     # state generation loop - this is for sequential loading so far
     for i_loop in range(1000):
         event_A = source_A.schedule_event()
@@ -125,18 +148,40 @@ if __name__ == "__main__":
         time_list += [world.event_queue.current_time]
         fidelity_list += [pair_fidelity]
 
+        z0z0 = mat.tensor(mat.z0, mat.z0)
+        z1z1 = mat.tensor(mat.z1, mat.z1)
+        correlations_z = np.dot(np.dot(mat.H(z0z0), new_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), new_pair.state), z1z1)[0, 0]
+        correlations_z_list += [correlations_z]
+
+        x0x0 = mat.tensor(mat.x0, mat.x0)
+        x1x1 = mat.tensor(mat.x1, mat.x1)
+        correlations_x = np.dot(np.dot(mat.H(x0x0), new_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), new_pair.state), x1x1)[0, 0]
+        correlations_x_list += [correlations_x]
+
+        key_rate_time_list += [calculate_keyrate_time(correlations_z_list, correlations_x_list, F, world.event_queue.current_time)]
+
         new_pair.qubits[0].destroy()
         new_pair.qubits[1].destroy()
         new_pair.destroy()
 
         if i_loop % 10 == 0:
-            plt.cla()
-            plt.scatter(time_list, fidelity_list)
-            plt.ylim(0, 1)
-            plt.xlim(0)
-            plt.xlabel("Time (in seconds)")
-            plt.ylabel("Fidelity")
-            plt.grid()
+
+            ax1.clear()
+            ax1.scatter(time_list, fidelity_list)
+            ax1.set_ylim(0, 1)
+            ax1.set_xlim(0)
+            ax1.grid()
+            ax1.set_xlabel("Time (in seconds)")
+            ax1.set_ylabel("Fidelity")
+
+
+            ax2.clear()
+            ax2.set_xlim(*ax1.get_xlim())
+            ax2.plot(time_list, key_rate_time_list)
+            ax2.grid()
+            ax2.set_xlabel("Time (in seconds)")
+            ax2.set_ylabel("averaged key rate until now")
+
             plt.show()
             plt.pause(0.002)
 

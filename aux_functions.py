@@ -32,3 +32,6 @@ def y_noise_channel(rho, epsilon):
 
 def z_noise_channel(rho, epsilon):
     return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.Z, rho), mat.H(mat.Z))
+
+def w_noise_channel(rho, alpha):
+    return alpha * rho + (1 - alpha) * mat.I(2) / 2
