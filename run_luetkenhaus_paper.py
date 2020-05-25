@@ -103,105 +103,129 @@ def calculate_keyrate_channel_use(correlations_x, correlations_z, err_corr_ineff
     return len(correlations_z) / np.sum(resource_list) * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
 
 if __name__ == "__main__":
-    world = World()
-    station_A = Station(world, id=0, position=0, memory_noise=None)
-    station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
-    station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
-    source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
-    source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
+    def run(L_TOT, max_iter):
+        world = World()
+        station_A = Station(world, id=0, position=0, memory_noise=None)
+        station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
+        station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
+        source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
+        source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
 
-    time_list = []
-    fidelity_list = []
-    correlations_z_list = []
-    correlations_x_list = []
-    key_rate_time_list = []
-    resource_cost_max_list = []
-    key_rate_resources_max_list = []
-    plt.ion()
-    fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
-    fig.tight_layout(pad=3.0)
-    # state generation loop - this is for sequential loading so far
-    for i_loop in range(1000):
-        event_A = source_A.schedule_event()
-        event_schedule_B = GenericEvent(time=event_A.time, resolve_function=source_B.schedule_event)
-        world.event_queue.add_event(event_schedule_B)
-        while world.event_queue.queue:
-            world.event_queue.resolve_next_event()
-        # then do entanglement swapping
-        left_pair = world.world_objects["Pair"][0]
-        right_pair = world.world_objects["Pair"][1]
-        assert left_pair.qubits[1].station is station_central
-        assert right_pair.qubits[0].station is station_central
-        left_pair.update_time()
-        right_pair.update_time()
-        four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
-        # non-ideal-bell-measurement
-        four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
-        my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
-        two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
-        two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
-        new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state, initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add, initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
-        comm_distance = np.max([np.abs(left_pair.qubits[1].station.position - left_pair.qubits[0].station.position), np.abs(right_pair.qubits[1].station.position - right_pair.qubits[0].station.position)])
-        world.event_queue.current_time += comm_distance / C
-        # cleanup
-        left_pair.qubits[1].destroy()
-        right_pair.qubits[0].destroy()
-        left_pair.destroy()
-        right_pair.destroy()
+        time_list = []
+        fidelity_list = []
+        correlations_z_list = []
+        correlations_x_list = []
+        key_rate_time_list = []
+        resource_cost_max_list = []
+        key_rate_resources_max_list = []
+        # plt.ion()
+        # fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
+        # fig.tight_layout(pad=3.0)
+        # state generation loop - this is for sequential loading so far
+        for i_loop in range(max_iter):
+            event_A = source_A.schedule_event()
+            event_schedule_B = GenericEvent(time=event_A.time, resolve_function=source_B.schedule_event)
+            world.event_queue.add_event(event_schedule_B)
+            while world.event_queue.queue:
+                world.event_queue.resolve_next_event()
+            # then do entanglement swapping
+            left_pair = world.world_objects["Pair"][0]
+            right_pair = world.world_objects["Pair"][1]
+            assert left_pair.qubits[1].station is station_central
+            assert right_pair.qubits[0].station is station_central
+            left_pair.update_time()
+            right_pair.update_time()
+            four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
+            # non-ideal-bell-measurement
+            four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+            my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
+            two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
+            two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
+            new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state, initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add, initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
+            comm_distance = np.max([np.abs(left_pair.qubits[1].station.position - left_pair.qubits[0].station.position), np.abs(right_pair.qubits[1].station.position - right_pair.qubits[0].station.position)])
+            world.event_queue.current_time += comm_distance / C
+            # cleanup
+            left_pair.qubits[1].destroy()
+            right_pair.qubits[0].destroy()
+            left_pair.destroy()
+            right_pair.destroy()
 
-        pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), new_pair.state), mat.phiplus)[0, 0]
-        time_list += [world.event_queue.current_time]
-        fidelity_list += [pair_fidelity]
+            pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), new_pair.state), mat.phiplus)[0, 0]
+            time_list += [world.event_queue.current_time]
+            fidelity_list += [pair_fidelity]
 
-        z0z0 = mat.tensor(mat.z0, mat.z0)
-        z1z1 = mat.tensor(mat.z1, mat.z1)
-        correlations_z = np.dot(np.dot(mat.H(z0z0), new_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), new_pair.state), z1z1)[0, 0]
-        correlations_z_list += [correlations_z]
+            z0z0 = mat.tensor(mat.z0, mat.z0)
+            z1z1 = mat.tensor(mat.z1, mat.z1)
+            correlations_z = np.dot(np.dot(mat.H(z0z0), new_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), new_pair.state), z1z1)[0, 0]
+            correlations_z_list += [correlations_z]
 
-        x0x0 = mat.tensor(mat.x0, mat.x0)
-        x1x1 = mat.tensor(mat.x1, mat.x1)
-        correlations_x = np.dot(np.dot(mat.H(x0x0), new_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), new_pair.state), x1x1)[0, 0]
-        correlations_x_list += [correlations_x]
+            x0x0 = mat.tensor(mat.x0, mat.x0)
+            x1x1 = mat.tensor(mat.x1, mat.x1)
+            correlations_x = np.dot(np.dot(mat.H(x0x0), new_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), new_pair.state), x1x1)[0, 0]
+            correlations_x_list += [correlations_x]
 
-        key_rate_time_list += [calculate_keyrate_time(correlations_z_list, correlations_x_list, F, world.event_queue.current_time)]
+            key_rate_time_list += [calculate_keyrate_time(correlations_z_list, correlations_x_list, F, world.event_queue.current_time)]
 
-        resource_cost_max_list += [new_pair.resource_cost_max]
-        key_rate_resources_max_list += [calculate_keyrate_channel_use(correlations_z_list, correlations_x_list, F, resource_cost_max_list)]
+            resource_cost_max_list += [new_pair.resource_cost_max]
+            key_rate_resources_max_list += [calculate_keyrate_channel_use(correlations_z_list, correlations_x_list, F, resource_cost_max_list)]
 
-        new_pair.qubits[0].destroy()
-        new_pair.qubits[1].destroy()
-        new_pair.destroy()
+            new_pair.qubits[0].destroy()
+            new_pair.qubits[1].destroy()
+            new_pair.destroy()
 
-        if i_loop % 10 == 0:
+            # if i_loop % 10 == 0:
+            #
+            #     ax1.clear()
+            #     ax1.scatter(time_list, fidelity_list)
+            #     ax1.set_ylim(0, 1)
+            #     ax1.set_xlim(0)
+            #     ax1.grid()
+            #     ax1.set_xlabel("Time (in seconds)")
+            #     ax1.set_ylabel("Fidelity")
+            #
+            #
+            #     ax2.clear()
+            #     ax2.set_xlim(*ax1.get_xlim())
+            #     ax2.set_yscale("log")
+            #     # ax2.set_ylim(10**-7, 10**-3)
+            #     ax2.plot(time_list, key_rate_time_list)
+            #     ax2.grid()
+            #     ax2.set_xlabel("Time (in seconds)")
+            #     ax2.set_ylabel("averaged key rate per time so far")
+            #
+            #     ax3.clear()
+            #     ax3.set_xlim(*ax1.get_xlim())
+            #     ax3.set_yscale("log")
+            #     # ax2.set_ylim(10**-7, 10**-3)
+            #     ax3.plot(time_list, key_rate_resources_max_list)
+            #     ax3.grid()
+            #     ax3.set_xlabel("Time (in seconds)")
+            #     ax3.set_ylabel("averaged key rate per channel use so far")
+            #
+            #     plt.show()
+            #     plt.pause(0.002)
 
-            ax1.clear()
-            ax1.scatter(time_list, fidelity_list)
-            ax1.set_ylim(0, 1)
-            ax1.set_xlim(0)
-            ax1.grid()
-            ax1.set_xlabel("Time (in seconds)")
-            ax1.set_ylabel("Fidelity")
+        # input("Input something to continue.")
+        return key_rate_time_list[-1], key_rate_resources_max_list[-1]
 
 
-            ax2.clear()
-            ax2.set_xlim(*ax1.get_xlim())
-            ax2.set_yscale("log")
-            # ax2.set_ylim(10**-7, 10**-3)
-            ax2.plot(time_list, key_rate_time_list)
-            ax2.grid()
-            ax2.set_xlabel("Time (in seconds)")
-            ax2.set_ylabel("averaged key rate per time so far")
+    length_list = np.arange(1000, 71000, 2500)
+    key_per_time_list = []
+    key_per_resource_list = []
+    for l in length_list:
+        print(l)
+        key_per_time, key_per_resource = run(L_TOT=l, max_iter=10000)
+        key_per_time_list += [key_per_time]
+        key_per_resource_list += [key_per_resource]
 
-            ax3.clear()
-            ax3.set_xlim(*ax1.get_xlim())
-            ax3.set_yscale("log")
-            # ax2.set_ylim(10**-7, 10**-3)
-            ax3.plot(time_list, key_rate_resources_max_list)
-            ax3.grid()
-            ax3.set_xlabel("Time (in seconds)")
-            ax3.set_ylabel("averaged key rate per channel use so far")
+    plt.plot(length_list, key_per_time_list)
+    plt.yscale("log")
+    plt.xlabel("total length")
+    plt.ylabel("key_rate_per_time")
+    plt.show()
 
-            plt.show()
-            plt.pause(0.002)
-
-    input("Input something to continue.")
+    plt.plot(length_list, key_per_resource_list)
+    plt.yscale("log")
+    plt.xlabel("total length")
+    plt.ylabel("key rate per channel use")
+    plt.show()
