@@ -28,6 +28,28 @@ class Event(ABC):
         pass
 
 
+class GenericEvent(Event):
+    """Event that executes arbitrary function.
+
+    Args:
+        time (scalar): Time at which the event will be resolved.
+        resolve_function (callable): Function that will be called when the resolve method is called.
+        *args: args for resolve_function
+        **kwargs: kwargs for resolve_function
+
+    """
+    def __init__(self, time, resolve_function, *args, **kwargs):
+        self._resolve_function = resolve_function
+        self._resolve_function_args = args
+        self._resolve_function_kwargs = kwargs
+        super(GenericEvent, self).__init__(time)
+
+    def __repr__(self):
+        return self.__class__.__name__ + "(time=" + str(time) + ", resolve_function="+str(resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
+
+    def resolve(self):
+        return self._resolve_function(*self._resolve_function_args, **self._resolve_function_kwargs)
+
 class SourceEvent(Event):
     """An Event generating an entangled pair.
 
@@ -47,9 +69,11 @@ class SourceEvent(Event):
 
     """
 
-    def __init__(self, time, source, initial_state):
+    def __init__(self, time, source, initial_state, *args, **kwargs):
         self.source = source
         self.initial_state = initial_state
+        self.generation_args = args
+        self.generation_kwargs = kwargs
         super(SourceEvent, self).__init__(time)
 
     def __repr__(self):
@@ -60,7 +84,7 @@ class SourceEvent(Event):
 
         Generates a pair at the target stations of `self.source`
         """
-        self.source.generate_pair(self.initial_state)
+        self.source.generate_pair(self.initial_state, *self.generation_args, **self.generation_kwargs)
 
 
 class EventQueue(object):
@@ -114,6 +138,6 @@ class EventQueue(object):
 
         """
         event = self.queue[0]
-        event.resolve()
         self.current_time = event.time
+        event.resolve()
         self.queue = self.queue[1:]

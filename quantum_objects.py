@@ -1,6 +1,8 @@
 import sys
 import abc
 from abc import abstractmethod
+from warnings import warn
+from aux_functions import apply_single_qubit_map
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -24,12 +26,14 @@ class WorldObject(ABC):
     ----------
     world : World
     event_queue : EventQueue
+    last_updated : scalar
 
     """
 
     def __init__(self, world):
         self.world = world
         self.world.register_world_object(self)
+        self.last_updated = self.event_queue.current_time
 
     def destroy(self):
         """Remove this WordlObject from the world."""
@@ -47,6 +51,13 @@ class WorldObject(ABC):
 
         """
         return self.world.event_queue
+
+    def _on_update_time(self):
+        pass
+
+    def update_time(self):  # to be used to update internal time
+        self._on_update_time()
+        self.last_updated = self.event_queue.current_time
 
 
 class Qubit(WorldObject):
@@ -77,6 +88,11 @@ class Qubit(WorldObject):
     def __str__(self):
         return "Qubit at station %s, part of pair %s." % (str(self.station), str(self.pair))
 
+    def destroy(self):
+        # station needs to be notified that qubit is no longer there, not sure how to handle pairs yet
+        self.station.remove_qubit(self)
+        super(Qubit, self).destroy()
+
 
 class Pair(WorldObject):
     """A Pair of two qubits with its associated quantum state.
@@ -103,12 +119,14 @@ class Pair(WorldObject):
 
     """
 
-    def __init__(self, world, qubits, initial_state):
+    def __init__(self, world, qubits, initial_state, initial_cost_add=None, initial_cost_max=None):
         # maybe add a check that qubits are always in the same order?
         self.qubits = qubits
         self.state = initial_state
         self.qubit1.pair = self
         self.qubit2.pair = self
+        self.resource_cost_add = initial_cost_add
+        self.resource_cost_max = initial_cost_max
         super(Pair, self).__init__(world)
 
     # not sure we actually need to be able to change qubits
@@ -144,6 +162,15 @@ class Pair(WorldObject):
     def qubit2(self, qubit):
         self.qubits[1] = qubit
 
+    def _on_update_time(self):
+        time_interval = self.event_queue.current_time - self.last_updated
+        map0 = self.qubits[0].station.memory_noise
+        if map0 is not None:
+            self.state = apply_single_qubit_map(map_func=map0, qubit_index=0, rho=self.state, t=time_interval)
+        map1 = self.qubits[1].station.memory_noise
+        if map1 is not None:
+            self.state = apply_single_qubit_map(map_func=map1, qubit_index=1, rho=self.state, t=time_interval)
+
 
 class Station(WorldObject):
     """A repeater station.
@@ -163,13 +190,16 @@ class Station(WorldObject):
         Numerical label for the station.
     position : scalar
         Position in meters in the 1D line for this linear repeater.
+    qubits : list of Qubit objects
+        The qubits currently at this position.
 
     """
 
-    def __init__(self, world, id, position):
+    def __init__(self, world, id, position, memory_noise=None):
         self.id = id
         self.position = position
-        # self.qubits = []
+        self.qubits = []
+        self.memory_noise = memory_noise
         super(Station, self).__init__(world)
 
     def __str__(self):
@@ -185,8 +215,14 @@ class Station(WorldObject):
 
         """
         new_qubit = Qubit(world=self.world, station=self)
-        # self.qubits += [new_qubit]
+        self.qubits += [new_qubit]
         return new_qubit
+
+    def remove_qubit(self, qubit):
+        try:
+            self.qubits.remove(qubit)
+        except ValueError:
+            warn("Tried to remove qubit %s from station %s, but the station was not tracking that qubit." % (repr(qubit), repr(self)))
 
 
 class Source(WorldObject):
@@ -217,7 +253,7 @@ class Source(WorldObject):
         self.target_stations = target_stations
         super(Source, self).__init__(world)
 
-    def generate_pair(self, initial_state):
+    def generate_pair(self, initial_state, initial_cost_add=None, initial_cost_max=None):
         """Generate an entangled pair.
 
         The Pair will be generated in the `initial_state` at the
@@ -239,4 +275,4 @@ class Source(WorldObject):
         station2 = self.target_stations[1]
         qubit1 = station1.create_qubit()
         qubit2 = station2.create_qubit()
-        return Pair(world=self.world, qubits=[qubit1, qubit2], initial_state=initial_state)
+        return Pair(world=self.world, qubits=[qubit1, qubit2], initial_state=initial_state, initial_cost_add=initial_cost_add, initial_cost_max=initial_cost_max)
