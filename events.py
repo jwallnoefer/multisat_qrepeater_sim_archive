@@ -1,6 +1,9 @@
 import sys
 import abc
 from abc import abstractmethod
+import libs.matrix as mat
+import numpy as np
+from quantum_objects import Pair
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -24,7 +27,12 @@ class Event(ABC):
 
     @abstractmethod
     def resolve(self):
-        """Resolve the event."""
+        """Resolve the event.
+
+        Returns
+        -------
+        None
+        """
         pass
 
 
@@ -49,6 +57,7 @@ class GenericEvent(Event):
 
     def resolve(self):
         return self._resolve_function(*self._resolve_function_args, **self._resolve_function_kwargs)
+
 
 class SourceEvent(Event):
     """An Event generating an entangled pair.
@@ -82,9 +91,69 @@ class SourceEvent(Event):
     def resolve(self):
         """Resolve the event.
 
-        Generates a pair at the target stations of `self.source`
+        Generates a pair at the target stations of `self.source`.
+
+        Returns
+        -------
+        None
         """
         self.source.generate_pair(self.initial_state, *self.generation_args, **self.generation_kwargs)
+
+
+class EntanglementSwappingEvent(Event):
+    """Short summary.
+
+    Args:
+        time (scalar): Time at which the event will be resolved.
+        pairs (list of Pairs): The left pair and the right pair.
+        error_func (callable): A four-qubit map.
+
+    Attributes:
+        pairs
+        error_func
+
+    """
+    def __init__(self, time, pairs, error_func):
+        self.pairs = pairs
+        self.error_func = error_func  # currently a four-qubit channel, would be nicer as two-qubit channel that gets applied to the right qubits
+        super(EntanglementSwappingEvent, self).__init__(time)
+
+    def __repr__(self):
+        pass
+
+    def resolve(self):
+        """Resolve the event.
+
+        Performs entanglement swapping between the two pairs and generates the
+        appropriate Pair object for the long-distance pair.
+
+        Returns
+        -------
+        None
+        """
+        # it would be nice if this could handle arbitrary configurations
+        # instead of relying on strict indexes of left and right pairs
+        left_pair = self.pairs[0]
+        right_pair = self.pairs[1]
+        assert left_pair.qubits[1].station is right_pair.qubits[0].station
+        left_pair.update_time()
+        right_pair.update_time()
+        four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
+        # non-ideal-bell-measurement
+        four_qubit_state = self.error_func(four_qubit_state)
+        my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
+        two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
+        two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
+        new_pair = Pair(world=left_pair.world, qubits=[left_pair.qubits[0], right_pair.qubits[1]],
+                        initial_state=two_qubit_state,
+                        initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add,
+                        initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
+        # cleanup
+        left_pair.qubits[1].destroy()
+        right_pair.qubits[0].destroy()
+        left_pair.destroy()
+        right_pair.destroy()
+
 
 
 class EventQueue(object):
@@ -141,3 +210,20 @@ class EventQueue(object):
         self.current_time = event.time
         event.resolve()
         self.queue = self.queue[1:]
+
+    def advance_time(self, time_interval):
+        """Helper method to manually advance time.
+
+        Parameters
+        ----------
+        time_interval : int
+            The amount of time that passes.
+
+        Returns
+        -------
+        None
+
+        """
+        self.current_time += time_interval
+        if self.queue and self.queue[0].time < self.current_time:
+            raise ValueError("time_interval too large. Manual time advancing skipped an event. Time travel is not permitted.")

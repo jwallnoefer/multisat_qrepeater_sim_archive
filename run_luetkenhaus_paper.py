@@ -1,6 +1,6 @@
 from quantum_objects import Source, Station, Pair
 from world import World
-from events import SourceEvent, GenericEvent
+from events import SourceEvent, GenericEvent, EntanglementSwappingEvent
 import libs.matrix as mat
 import numpy as np
 from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel
@@ -86,9 +86,6 @@ def luetkenhaus_state_generation(source):
             state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta)
     return state
 
-# def noisy_bell_measurement(left_pair, right_pair, noise_channel)
-#     pass
-
 def binary_entropy(p):
     return -p * np.log2(p) - (1 - p) * np.log2((1 - p))
 
@@ -101,6 +98,11 @@ def calculate_keyrate_channel_use(correlations_x, correlations_z, err_corr_ineff
     e_z = 1 - np.sum(correlations_z)/len(correlations_z)
     e_x = 1 - np.sum(correlations_x)/len(correlations_x)
     return len(correlations_z) / np.sum(resource_list) * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+
+def imperfect_bsm_err_func(four_qubit_state):
+    return LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+
+
 
 if __name__ == "__main__":
     def run(L_TOT, max_iter):
@@ -129,26 +131,11 @@ if __name__ == "__main__":
             while world.event_queue.queue:
                 world.event_queue.resolve_next_event()
             # then do entanglement swapping
-            left_pair = world.world_objects["Pair"][0]
-            right_pair = world.world_objects["Pair"][1]
-            assert left_pair.qubits[1].station is station_central
-            assert right_pair.qubits[0].station is station_central
-            left_pair.update_time()
-            right_pair.update_time()
-            four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
-            # non-ideal-bell-measurement
-            four_qubit_state = LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
-            my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
-            two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
-            two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
-            new_pair = Pair(world=world, qubits=[left_pair.qubits[0], right_pair.qubits[1]], initial_state=two_qubit_state, initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add, initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
-            comm_distance = np.max([np.abs(left_pair.qubits[1].station.position - left_pair.qubits[0].station.position), np.abs(right_pair.qubits[1].station.position - right_pair.qubits[0].station.position)])
-            world.event_queue.current_time += comm_distance / C
-            # cleanup
-            left_pair.qubits[1].destroy()
-            right_pair.qubits[0].destroy()
-            left_pair.destroy()
-            right_pair.destroy()
+            ent_swap_event = EntanglementSwappingEvent(time=world.event_queue.current_time, pairs=world.world_objects["Pair"], error_func=imperfect_bsm_err_func)
+            world.event_queue.add_event(ent_swap_event)
+            while world.event_queue.queue:
+                world.event_queue.resolve_next_event()
+            new_pair = world.world_objects["Pair"][0]
 
             pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), new_pair.state), mat.phiplus)[0, 0]
             time_list += [world.event_queue.current_time]
@@ -172,6 +159,10 @@ if __name__ == "__main__":
             new_pair.qubits[0].destroy()
             new_pair.qubits[1].destroy()
             new_pair.destroy()
+
+            comm_distance = np.max([np.abs(station_central.position - station_A.position), np.abs(station_B.position - station_central.position)])
+            comm_time = comm_distance / C
+            world.event_queue.advance_time(comm_time)
 
             # if i_loop % 10 == 0:
             #
@@ -208,13 +199,14 @@ if __name__ == "__main__":
         # input("Input something to continue.")
         return key_rate_time_list[-1], key_rate_resources_max_list[-1]
 
+    # run(22000, 1000)
 
     length_list = np.arange(1000, 71000, 2500)
     key_per_time_list = []
     key_per_resource_list = []
     for l in length_list:
         print(l)
-        key_per_time, key_per_resource = run(L_TOT=l, max_iter=10000)
+        key_per_time, key_per_resource = run(L_TOT=l, max_iter=5000)
         key_per_time_list += [key_per_time]
         key_per_resource_list += [key_per_resource]
 
