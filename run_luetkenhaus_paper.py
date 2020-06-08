@@ -1,10 +1,12 @@
 from quantum_objects import Source, Station, Pair
+from protocol import Protocol
 from world import World
 from events import SourceEvent, GenericEvent, EntanglementSwappingEvent
 import libs.matrix as mat
 import numpy as np
 from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel
 import matplotlib.pyplot as plt
+from warnings import warn
 
 
 ETA_P = 0.66  # preparation efficiency
@@ -103,66 +105,146 @@ def imperfect_bsm_err_func(four_qubit_state):
     return LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
 
+class LuetkenhausProtocol(Protocol):
+    def __init__(self, world, mode="seq"):
+        if mode != "seq" and mode != "sim":
+            raise ValueError("LuetkenhausProtocol does not support mode %s. Use \"seq\" for sequential state generation, or \"sim\" for simultaneous state generation.")
+        self.mode = mode
+        self.time_list = []
+        self.fidelity_list = []
+        self.correlations_z_list = []
+        self.correlations_x_list = []
+        self.key_rate_time_list = []
+        self.resource_cost_max_list = []
+        self.key_rate_resources_max_list = []
+        super(LuetkenhausProtocol, self).__init__(world)
+
+    def setup(self):
+        stations = self.world.world_objects["Station"]
+        assert len(stations) == 3
+        self.station_A, self.station_central, self.station_B = sorted(stations, key=lambda x: x.position)
+        sources = self.world.world_objects["Source"]
+        assert len(sources) == 2
+        self.source_A = next(filter(lambda source: self.station_A in source.target_stations and self.station_central in source.target_stations, sources))
+        self.source_B = next(filter(lambda source: self.station_central in source.target_stations and self.station_B in source.target_stations, sources))
+        assert callable(getattr(self.source_A, "schedule_event", None))  # schedule_event is a required method for this protocol
+        assert callable(getattr(self.source_B, "schedule_event", None))
+
+
+    def _pair_is_between_stations(self, pair, station1, station2):
+        return (pair.qubit1.station == station1 and pair.qubit2.station == station2) or (pair.qubit1.station == station2 and pair.qubit2.station == station1)
+
+    def _get_left_pair(self):
+        try:
+            pairs = self.world.world_objects["Pair"]
+        except KeyError:
+            pairs = []
+        try:
+            return next(filter(lambda x: self._pair_is_between_stations(x, self.station_A, self.station_central), pairs))
+        except StopIteration:
+            return None
+
+    def _get_right_pair(self):
+        try:
+            pairs = self.world.world_objects["Pair"]
+        except KeyError:
+            pairs = []
+        try:
+            return next(filter(lambda x: self._pair_is_between_stations(x, self.station_central, self.station_B), pairs))
+        except StopIteration:
+            return None
+
+    def _get_long_range_pair(self):
+        try:
+            pairs = self.world.world_objects["Pair"]
+        except KeyError:
+            pairs = []
+        try:
+            return next(filter(lambda x: self._pair_is_between_stations(x, self.station_A, self.station_B), pairs))
+        except StopIteration:
+            return None
+
+    def _eval_pair(self, long_range_pair):
+        comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
+        comm_time = comm_distance / C
+
+        pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), long_range_pair.state), mat.phiplus)[0, 0]
+        self.time_list += [self.world.event_queue.current_time + comm_time]
+        self.fidelity_list += [pair_fidelity]
+
+        z0z0 = mat.tensor(mat.z0, mat.z0)
+        z1z1 = mat.tensor(mat.z1, mat.z1)
+        correlations_z = np.dot(np.dot(mat.H(z0z0), long_range_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), long_range_pair.state), z1z1)[0, 0]
+        self.correlations_z_list += [correlations_z]
+
+        x0x0 = mat.tensor(mat.x0, mat.x0)
+        x1x1 = mat.tensor(mat.x1, mat.x1)
+        correlations_x = np.dot(np.dot(mat.H(x0x0), long_range_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), long_range_pair.state), x1x1)[0, 0]
+        self.correlations_x_list += [correlations_x]
+
+        self.key_rate_time_list += [calculate_keyrate_time(self.correlations_z_list, self.correlations_x_list, F, self.world.event_queue.current_time + comm_time)]
+
+        self.resource_cost_max_list += [long_range_pair.resource_cost_max]
+        self.key_rate_resources_max_list += [calculate_keyrate_channel_use(self.correlations_z_list, self.correlations_x_list, F, self.resource_cost_max_list)]
+        return
+
+    def check(self):
+        # this protocol will only ever act if the event_queue is empty
+        if self.world.event_queue:
+            return
+        try:
+            pairs = self.world.world_objects["Pair"]
+        except KeyError:
+            pairs = []
+        # if there are no pairs, begin protocol
+        if not pairs:
+            if self.mode == "seq":
+                self.source_A.schedule_event()
+            elif self.mode == "sim":
+                self.source_A.schedule_event()
+                self.source_B.schedule_event()
+            return
+        # in sequential mode, if there is only a pair on the left side, schedule creation of right pair
+        left_pair = self._get_left_pair()
+        right_pair = self._get_right_pair()
+        if right_pair is None and left_pair:
+            if self.mode == "seq":
+                self.source_B.schedule_event()
+            return
+        if right_pair and left_pair:
+            ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=self.world.world_objects["Pair"], error_func=imperfect_bsm_err_func)
+            self.world.event_queue.add_event(ent_swap_event)
+            return
+        long_range_pair = self._get_long_range_pair()
+        if long_range_pair:
+            self._eval_pair(long_range_pair)
+            # cleanup
+            long_range_pair.qubits[0].destroy()
+            long_range_pair.qubits[1].destroy()
+            long_range_pair.destroy()
+            self.check()
+            return
+        warn("LuetkenhausProtocol encountered unknown world state. May be trapped in an infinte loop?")
+
 
 if __name__ == "__main__":
-    def run(L_TOT, max_iter):
+    def run(L_TOT, max_iter, mode="seq"):
         world = World()
         station_A = Station(world, id=0, position=0, memory_noise=None)
         station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
         station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
         source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
         source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
+        protocol = LuetkenhausProtocol(world, mode=mode)
+        protocol.setup()
 
-        time_list = []
-        fidelity_list = []
-        correlations_z_list = []
-        correlations_x_list = []
-        key_rate_time_list = []
-        resource_cost_max_list = []
-        key_rate_resources_max_list = []
         # plt.ion()
         # fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
         # fig.tight_layout(pad=3.0)
         # state generation loop - this is for sequential loading so far
-        for i_loop in range(max_iter):
-            event_A = source_A.schedule_event()
-            event_schedule_B = GenericEvent(time=event_A.time, resolve_function=source_B.schedule_event)
-            world.event_queue.add_event(event_schedule_B)
-            while world.event_queue.queue:
-                world.event_queue.resolve_next_event()
-            # then do entanglement swapping
-            ent_swap_event = EntanglementSwappingEvent(time=world.event_queue.current_time, pairs=world.world_objects["Pair"], error_func=imperfect_bsm_err_func)
-            world.event_queue.add_event(ent_swap_event)
-            while world.event_queue.queue:
-                world.event_queue.resolve_next_event()
-            new_pair = world.world_objects["Pair"][0]
-
-            pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), new_pair.state), mat.phiplus)[0, 0]
-            time_list += [world.event_queue.current_time]
-            fidelity_list += [pair_fidelity]
-
-            z0z0 = mat.tensor(mat.z0, mat.z0)
-            z1z1 = mat.tensor(mat.z1, mat.z1)
-            correlations_z = np.dot(np.dot(mat.H(z0z0), new_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), new_pair.state), z1z1)[0, 0]
-            correlations_z_list += [correlations_z]
-
-            x0x0 = mat.tensor(mat.x0, mat.x0)
-            x1x1 = mat.tensor(mat.x1, mat.x1)
-            correlations_x = np.dot(np.dot(mat.H(x0x0), new_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), new_pair.state), x1x1)[0, 0]
-            correlations_x_list += [correlations_x]
-
-            key_rate_time_list += [calculate_keyrate_time(correlations_z_list, correlations_x_list, F, world.event_queue.current_time)]
-
-            resource_cost_max_list += [new_pair.resource_cost_max]
-            key_rate_resources_max_list += [calculate_keyrate_channel_use(correlations_z_list, correlations_x_list, F, resource_cost_max_list)]
-
-            new_pair.qubits[0].destroy()
-            new_pair.qubits[1].destroy()
-            new_pair.destroy()
-
-            comm_distance = np.max([np.abs(station_central.position - station_A.position), np.abs(station_B.position - station_central.position)])
-            comm_time = comm_distance / C
-            world.event_queue.advance_time(comm_time)
+        while len(protocol.time_list) < max_iter:
+            protocol.check()
+            world.event_queue.resolve_next_event()
 
             # if i_loop % 10 == 0:
             #
@@ -197,16 +279,16 @@ if __name__ == "__main__":
             #     plt.pause(0.002)
 
         # input("Input something to continue.")
-        return key_rate_time_list[-1], key_rate_resources_max_list[-1]
+        return protocol.key_rate_time_list[-1], protocol.key_rate_resources_max_list[-1]
 
     # run(22000, 1000)
 
-    length_list = np.arange(1000, 71000, 2500)
+    length_list = np.arange(1000, 71000, 5000)
     key_per_time_list = []
     key_per_resource_list = []
     for l in length_list:
         print(l)
-        key_per_time, key_per_resource = run(L_TOT=l, max_iter=5000)
+        key_per_time, key_per_resource = run(L_TOT=l, max_iter=1000)
         key_per_time_list += [key_per_time]
         key_per_resource_list += [key_per_resource]
 
