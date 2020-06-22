@@ -1,13 +1,15 @@
+import os
 from quantum_objects import Source, Station, Pair
 from protocol import Protocol
 from world import World
 from events import SourceEvent, GenericEvent, EntanglementSwappingEvent
 import libs.matrix as mat
 import numpy as np
-from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel
+from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel, assert_dir
 import matplotlib.pyplot as plt
 from warnings import warn
 
+result_path = os.path.join("results", "luetkenhaus")
 
 ETA_P = 0.66  # preparation efficiency
 T_P = 2 * 10**-6  # preparation time
@@ -18,10 +20,9 @@ L_ATT = 22 * 10**3  # attenuation length
 E_M_A = 0.01  # misalignment error
 P_D = 10**-8  # dark count probability per detector
 ETA_D = 0.3  # detector efficiency
-P_BSM = 1  # BSM success probability
+P_BSM = 1  # BSM success probability  ## WARNING: Currently not implemented
 LAMBDA_BSM = 0.97  # BSM ideality parameter
 F = 1.16  # error correction inefficiency
-L_TOT = 33 * 10**3  # total distance between A and B
 
 ETA_TOT = ETA_P * ETA_C * ETA_D
 
@@ -65,9 +66,10 @@ def construct_dephasing_noise_channel(dephasing_time):
 
 def luetkenhaus_time_distribution(source):
     comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
+    comm_time = 2 * comm_distance / C
     eta = ETA_TOT * np.exp(-comm_distance / L_ATT)
     eta_effective = 1 - (1 - eta) * (1 - P_D)**2
-    trial_time = T_P + 2 * comm_distance / C  # I don't think that paper uses latency time and loading time?
+    trial_time = T_P + comm_time  # I don't think that paper uses latency time and loading time?
     random_num = np.random.geometric(eta_effective)
     return random_num * trial_time, random_num
 
@@ -77,15 +79,14 @@ def luetkenhaus_state_generation(source):
     comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
     storage_time = 2 * comm_distance / C
     for idx, station in enumerate(source.target_stations):
-        if station.memory_noise is not None:
+        if station.memory_noise is not None:  # only central station has noisy storage
             state = apply_single_qubit_map(map_func=station.memory_noise, qubit_index=idx, rho=state, t=storage_time)
-        # misalignment
-        if station.position == 0 or station.position == L_TOT:  # only count misalignment and dark counts for end stations
+        if station.memory_noise is None:  # only count misalignment and dark counts for end stations
+            # misalignment
             state = apply_single_qubit_map(map_func=y_noise_channel, qubit_index=idx, rho=state, epsilon=E_M_A)
             eta = ETA_TOT * np.exp(-comm_distance / L_ATT)
-            eta_effective = 1 - (1 - eta) * (1 - P_D)**2
-            alpha_of_eta = eta * (1 - P_D) / eta_effective
-            state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta)
+            # dark counts are modeled as white noise
+            state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta(eta))
     return state
 
 def binary_entropy(p):
@@ -103,6 +104,9 @@ def calculate_keyrate_channel_use(correlations_x, correlations_z, err_corr_ineff
 
 def imperfect_bsm_err_func(four_qubit_state):
     return LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+
+def alpha_of_eta(eta):
+    return eta * (1 - P_D) / (1 - (1 - eta) * (1 - P_D)**2)
 
 
 class LuetkenhausProtocol(Protocol):
@@ -212,7 +216,7 @@ class LuetkenhausProtocol(Protocol):
                 self.source_B.schedule_event()
             return
         if right_pair and left_pair:
-            ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=self.world.world_objects["Pair"], error_func=imperfect_bsm_err_func)
+            ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair], error_func=imperfect_bsm_err_func)
             self.world.event_queue.add_event(ent_swap_event)
             return
         long_range_pair = self._get_long_range_pair()
@@ -227,70 +231,66 @@ class LuetkenhausProtocol(Protocol):
         warn("LuetkenhausProtocol encountered unknown world state. May be trapped in an infinte loop?")
 
 
+def run(L_TOT, max_iter, mode="seq"):
+    world = World()
+    station_A = Station(world, id=0, position=0, memory_noise=None)
+    station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
+    station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
+    source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
+    source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
+    protocol = LuetkenhausProtocol(world, mode=mode)
+    protocol.setup()
+
+    # TODO: reintroduce an option for live plotting
+
+    # state generation loop - this is for sequential loading so far
+    while len(protocol.time_list) < max_iter:
+        protocol.check()
+        world.event_queue.resolve_next_event()
+
+    return protocol
+
 if __name__ == "__main__":
-    def run(L_TOT, max_iter, mode="seq"):
-        world = World()
-        station_A = Station(world, id=0, position=0, memory_noise=None)
-        station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
-        station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
-        source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
-        source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
-        protocol = LuetkenhausProtocol(world, mode=mode)
-        protocol.setup()
 
-        # plt.ion()
-        # fig, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1)
-        # fig.tight_layout(pad=3.0)
-        # state generation loop - this is for sequential loading so far
-        while len(protocol.time_list) < max_iter:
-            protocol.check()
-            world.event_queue.resolve_next_event()
-
-            # if i_loop % 10 == 0:
-            #
-            #     ax1.clear()
-            #     ax1.scatter(time_list, fidelity_list)
-            #     ax1.set_ylim(0, 1)
-            #     ax1.set_xlim(0)
-            #     ax1.grid()
-            #     ax1.set_xlabel("Time (in seconds)")
-            #     ax1.set_ylabel("Fidelity")
-            #
-            #
-            #     ax2.clear()
-            #     ax2.set_xlim(*ax1.get_xlim())
-            #     ax2.set_yscale("log")
-            #     # ax2.set_ylim(10**-7, 10**-3)
-            #     ax2.plot(time_list, key_rate_time_list)
-            #     ax2.grid()
-            #     ax2.set_xlabel("Time (in seconds)")
-            #     ax2.set_ylabel("averaged key rate per time so far")
-            #
-            #     ax3.clear()
-            #     ax3.set_xlim(*ax1.get_xlim())
-            #     ax3.set_yscale("log")
-            #     # ax2.set_ylim(10**-7, 10**-3)
-            #     ax3.plot(time_list, key_rate_resources_max_list)
-            #     ax3.grid()
-            #     ax3.set_xlabel("Time (in seconds)")
-            #     ax3.set_ylabel("averaged key rate per channel use so far")
-            #
-            #     plt.show()
-            #     plt.pause(0.002)
-
-        # input("Input something to continue.")
-        return protocol.key_rate_time_list[-1], protocol.key_rate_resources_max_list[-1]
-
-    # run(22000, 1000)
-
-    length_list = np.arange(1000, 71000, 5000)
+    # number_of_pairs = 10000
+    # total_distance = 51000
+    # protocol = run(total_distance, number_of_pairs)
+    # # print(protocol.resource_cost_max_list)
+    # my_yield = number_of_pairs/np.sum(protocol.resource_cost_max_list)
+    # n = 1 - (1 - ETA_TOT * np.exp(-total_distance/2/L_ATT)) * (1-P_D)**2
+    # calculated_yield = (1 / n + 1/n - 1/(n+n-n*n))**-1
+    # print("yield:", my_yield, calculated_yield)
+    # my_ex = 1 - np.sum(protocol.correlations_x_list)/number_of_pairs
+    # my_ez = 1 - np.sum(protocol.correlations_z_list)/number_of_pairs
+    # lambda_joint = LAMBDA_BSM * alpha_of_eta(ETA_TOT * np.exp(-total_distance/2/L_ATT))**2
+    # epsilon_m = E_M_A * (1 - E_M_A) + (1 - E_M_A) * E_M_A
+    # E_ta = n * np.exp(- total_distance / (C * T_2)) / (np.exp((T_P + total_distance) / C / T_2) + n - 1)
+    # epsilon_dp = 1 / 2 * (1 - np.exp(-total_distance/C/T_2) * E_ta)
+    # calculated_ex = lambda_joint * (epsilon_m * (1 - epsilon_dp) + (1 - epsilon_m) * epsilon_dp) + 1/2*(1 - lambda_joint)
+    # calculated_ez = lambda_joint * epsilon_m + 1/2*(1-lambda_joint)
+    # print("ex:", my_ex, calculated_ex)
+    # print("ez:", my_ez, calculated_ez)
+    # my_keyrate = calculate_keyrate_channel_use(correlations_x=protocol.correlations_x_list, correlations_z=protocol.correlations_z_list, err_corr_ineff=F, resource_list=protocol.resource_cost_max_list)
+    # my_same_keyrate = my_yield * (1 - binary_entropy(my_ex) - F * binary_entropy(my_ez))
+    # calculated_keyrate = calculated_yield * (1 - binary_entropy(calculated_ex) - F * binary_entropy(calculated_ez))
+    # print("keyrate:", my_keyrate, my_same_keyrate, calculated_keyrate)
+    #
+    # quit()
+    length_list = np.concatenate([np.arange(1000, 61000, 2500), np.arange(61000, 69000, 1000)])
+    mode="seq"
     key_per_time_list = []
     key_per_resource_list = []
     for l in length_list:
         print(l)
-        key_per_time, key_per_resource = run(L_TOT=l, max_iter=1000)
+        protocol = run(L_TOT=l, max_iter=10000, mode=mode)
+        key_per_time, key_per_resource = protocol.key_rate_time_list[-1], protocol.key_rate_resources_max_list[-1]
         key_per_time_list += [key_per_time]
         key_per_resource_list += [key_per_resource]
+
+    assert_dir(result_path)
+    np.savetxt(os.path.join(result_path, "length_list_%s.txt" % mode), length_list)
+    np.savetxt(os.path.join(result_path, "key_per_time_list_%s.txt" % mode), key_per_time_list)
+    np.savetxt(os.path.join(result_path, "key_per_resource_list_%s.txt" % mode), key_per_resource_list)
 
     plt.plot(length_list, key_per_time_list)
     plt.yscale("log")

@@ -1,5 +1,10 @@
+import os
 import numpy as np
 import libs.matrix as mat
+
+def assert_dir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
     """Applies a single-qubit map to a density matrix of n qubits.
