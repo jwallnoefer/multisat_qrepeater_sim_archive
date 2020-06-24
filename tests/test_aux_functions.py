@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, call
 import numpy as np
-from aux_functions import apply_single_qubit_map
+from aux_functions import apply_single_qubit_map, w_noise_channel
 import libs.matrix as mat
 
 def _single_qubit_wnoise(rho, p):
@@ -36,7 +36,8 @@ class TestAuxFunctions(unittest.TestCase):
         trusted_way = mat.wnoise(rho=test_state, n=qubit_index, p=p)
         new_way = apply_single_qubit_map(map_func=_single_qubit_wnoise, qubit_index=qubit_index, rho=test_state, p=p)
         self.assertTrue(np.allclose(trusted_way, new_way))
-
+        new_way_again = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=qubit_index, rho=test_state, alpha=p)
+        self.assertTrue(np.allclose(trusted_way, new_way_again))
 
 if __name__ == '__main__':
     unittest.main()
