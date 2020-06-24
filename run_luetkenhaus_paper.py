@@ -119,7 +119,6 @@ class LuetkenhausProtocol(Protocol):
         self.correlations_z_list = []
         self.correlations_x_list = []
         self.resource_cost_max_list = []
-        self.tb_log = []
         super(LuetkenhausProtocol, self).__init__(world)
 
     def setup(self):
@@ -210,8 +209,6 @@ class LuetkenhausProtocol(Protocol):
         if right_pair is None and left_pair:
             if self.mode == "seq":
                 self.source_B.schedule_event()
-                time_delay = self.world.event_queue.queue[0].time - self.world.event_queue.current_time
-                self.tb_log += [time_delay]
             return
         if right_pair and left_pair:
             ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair], error_func=imperfect_bsm_err_func)
@@ -249,66 +246,6 @@ def run(L_TOT, max_iter, mode="seq"):
     return protocol
 
 if __name__ == "__main__":
-    # L_TOT = 61000
-    # world = World()
-    # station_A = Station(world, id=0, position=0, memory_noise=None)
-    # station_B = Station(world, id=1, position=L_TOT, memory_noise=None)
-    # station_central = Station(world, id=2, position=L_TOT/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_2))
-    # source_A = SchedulingSource(world, position=L_TOT/2, target_stations=[station_A, station_central], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
-    # source_B = SchedulingSource(world, position=L_TOT/2, target_stations=[station_central, station_B], time_distribution=luetkenhaus_time_distribution, state_generation=luetkenhaus_state_generation)
-    # protocol = LuetkenhausProtocol(world, mode="seq")
-    #
-    # source_A.schedule_event()
-    # world.event_queue.resolve_next_event()
-    # my_pair = world.world_objects["Pair"][0]
-    # z0z0 = mat.tensor(mat.z0, mat.z0)
-    # z1z1 = mat.tensor(mat.z1, mat.z1)
-    # correlations_z = np.dot(np.dot(mat.H(z0z0), my_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), my_pair.state), z1z1)[0, 0]
-    #
-    # x0x0 = mat.tensor(mat.x0, mat.x0)
-    # x1x1 = mat.tensor(mat.x1, mat.x1)
-    # correlations_x = np.dot(np.dot(mat.H(x0x0), my_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), my_pair.state), x1x1)[0, 0]
-    # pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), my_pair.state), mat.phiplus)[0, 0]
-    # print(1 - correlations_z)
-    # print(1 - correlations_x)
-    # print(pair_fidelity)
-    # print(my_pair.state)
-    # my_state = np.dot(mat.phiplus, mat.H(mat.phiplus))
-    # my_state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=0, rho=my_state, alpha=alpha_of_eta(1))
-    # print(my_state)
-    #
-    #
-    #
-    # number_of_pairs = 10000
-    # total_distance = 61000
-    # protocol = run(total_distance, number_of_pairs)
-    # # print(protocol.resource_cost_max_list)
-    # my_yield = number_of_pairs/np.sum(protocol.resource_cost_max_list)
-    # n = 1 - (1 - ETA_TOT * np.exp(-total_distance/2/L_ATT)) * (1-P_D)**2
-    # calculated_yield = (1 / n + 1/n - 1/(n+n-n*n))**-1
-    # print("yield:", my_yield, calculated_yield)
-    # my_ex = 1 - np.sum(protocol.correlations_x_list)/number_of_pairs
-    # my_ez = 1 - np.sum(protocol.correlations_z_list)/number_of_pairs
-    # lambda_joint = LAMBDA_BSM * alpha_of_eta(ETA_TOT * np.exp(-total_distance/2/L_ATT))**2
-    # # lambda_joint = LAMBDA_BSM * alpha_of_eta(n)**2
-    # epsilon_m = E_M_A * (1 - E_M_A) + (1 - E_M_A) * E_M_A
-    # E_ta = n * np.exp(- total_distance / (C * T_2)) / (np.exp((T_P + total_distance / C) / T_2) + n - 1)
-    # epsilon_dp = 1 / 2 * (1 - np.exp(-total_distance/C/T_2) * E_ta)
-    # calculated_ex = lambda_joint * (epsilon_m * (1 - epsilon_dp) + (1 - epsilon_m) * epsilon_dp) + 1/2*(1 - lambda_joint)
-    # calculated_ez = lambda_joint * epsilon_m + 1/2*(1-lambda_joint)
-    # print("ex:", my_ex, calculated_ex)
-    # print("ez:", my_ez, calculated_ez)
-    # my_keyrate = calculate_keyrate_channel_use(correlations_z=protocol.correlations_z_list, correlations_x=protocol.correlations_x_list, err_corr_ineff=F, resource_list=protocol.resource_cost_max_list)
-    # my_same_keyrate = my_yield * (1 - binary_entropy(my_ex) - F * binary_entropy(my_ez))
-    # calculated_keyrate = calculated_yield * (1 - binary_entropy(calculated_ex) - F * binary_entropy(calculated_ez))
-    # print("keyrate:", my_keyrate, my_same_keyrate, calculated_keyrate)
-    # tb_log = np.array(protocol.tb_log)
-    # ta_log = tb_log + total_distance/C
-    # expta_log = np.exp(-ta_log/T_2)
-    # my_E_ta = np.sum(expta_log)/number_of_pairs
-    # print("E_ta", my_E_ta, E_ta)
-    #
-    # quit()
     length_list = np.concatenate([np.arange(1000, 61000, 2500), np.arange(61000, 69000, 1000)])
     mode="seq"
     key_per_time_list = []
