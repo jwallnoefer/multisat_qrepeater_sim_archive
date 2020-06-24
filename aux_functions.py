@@ -39,4 +39,4 @@ def z_noise_channel(rho, epsilon):
     return (1 - epsilon) * rho + epsilon * np.dot(np.dot(mat.Z, rho), mat.H(mat.Z))
 
 def w_noise_channel(rho, alpha):
-    return alpha * rho + (1 - alpha) * mat.I(2) / 2
+    return alpha * rho + (1 - alpha) * mat.I(2) / 2 * np.trace(rho) # trace is necessary if dealing with unnormalized states (e.g. in apply_single_qubit_map)
