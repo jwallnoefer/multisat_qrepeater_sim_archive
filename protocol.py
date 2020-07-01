@@ -8,6 +8,18 @@ else:
     ABC = abc.ABCMeta('ABC', (), {})
 
 class Protocol(ABC):
+    """Abstract base class for protocols.
+
+    Parameters
+    ----------
+    world : World
+        The world in which the protocol will be performed.
+
+    Attributes
+    ----------
+    world
+
+    """
     def __init__(self, world):
         self.world = world
 
@@ -20,6 +32,7 @@ class Protocol(ABC):
         situation and possibly label stations/sources so they are easy
         to access in the check method of the protocol.
         """
+        pass
 
     @abstractmethod
     def check(self):

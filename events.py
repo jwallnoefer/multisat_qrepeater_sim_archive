@@ -15,6 +15,19 @@ class Event(ABC):
     """Abstract base class for events.
 
     Events are scheduled in an EventQueue and resolved at a specific time.
+
+    Parameters
+    ----------
+    time : scalar
+        The time at which the event will be resolved.
+
+    Attributes
+    ----------
+    event_queue : EventQueue
+        The event is part of this event queue.
+        (None until added to an event queue.)
+    time
+
     """
 
     def __init__(self, time, *args, **kwargs):
@@ -32,6 +45,7 @@ class Event(ABC):
         Returns
         -------
         None
+
         """
         pass
 
@@ -39,11 +53,16 @@ class Event(ABC):
 class GenericEvent(Event):
     """Event that executes arbitrary function.
 
-    Args:
-        time (scalar): Time at which the event will be resolved.
-        resolve_function (callable): Function that will be called when the resolve method is called.
-        *args: args for resolve_function
-        **kwargs: kwargs for resolve_function
+    Parameters
+    ----------
+    time : scalar
+        Time at which the event will be resolved.
+    resolve_function : callable
+        Function that will be called when the resolve method is called.
+    *args : any
+        args for resolve_function.
+    **kwargs : any
+        kwargs for resolve_function.
 
     """
     def __init__(self, time, resolve_function, *args, **kwargs):
@@ -96,6 +115,7 @@ class SourceEvent(Event):
         Returns
         -------
         None
+
         """
         self.source.generate_pair(self.initial_state, *self.generation_args, **self.generation_kwargs)
 
@@ -103,14 +123,19 @@ class SourceEvent(Event):
 class EntanglementSwappingEvent(Event):
     """Short summary.
 
-    Args:
-        time (scalar): Time at which the event will be resolved.
-        pairs (list of Pairs): The left pair and the right pair.
-        error_func (callable): A four-qubit map.
+    Parameters
+    ----------
+    time : scalar
+        Time at which the event will be resolved.
+    pairs : list of Pairs
+        The left pair and the right pair.
+    error_func : callable
+        A four-qubit map.
 
-    Attributes:
-        pairs
-        error_func
+    Attributes
+    ----------
+    pairs
+    error_func
 
     """
     def __init__(self, time, pairs, error_func):
@@ -130,6 +155,7 @@ class EntanglementSwappingEvent(Event):
         Returns
         -------
         None
+
         """
         # it would be nice if this could handle arbitrary configurations
         # instead of relying on strict indexes of left and right pairs

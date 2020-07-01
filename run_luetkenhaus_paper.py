@@ -110,6 +110,26 @@ def alpha_of_eta(eta):
 
 
 class LuetkenhausProtocol(Protocol):
+    """Short summary.
+
+    Parameters
+    ----------
+    world : World
+        The world in which the protocol will be performed.
+    mode : {"seq", "sim"}
+        Selects sequential or simultaneous generation of links.
+
+    Attributes
+    ----------
+    time_list : list of scalars
+    fidelity_list : list of scalars
+    correlations_z_list : list of scalars
+    correlations_x_list : list of scalars
+    resource_cost_max_list : list of scalars
+    mode : str
+        "seq" or "sim"
+
+    """
     def __init__(self, world, mode="seq"):
         if mode != "seq" and mode != "sim":
             raise ValueError("LuetkenhausProtocol does not support mode %s. Use \"seq\" for sequential state generation, or \"sim\" for simultaneous state generation.")
@@ -122,6 +142,16 @@ class LuetkenhausProtocol(Protocol):
         super(LuetkenhausProtocol, self).__init__(world)
 
     def setup(self):
+        """Identifies the stations and sources in the world.
+
+        Should be run after the relevant WorldObjects have been added
+        to the world.
+
+        Returns
+        -------
+        None
+
+        """
         stations = self.world.world_objects["Station"]
         assert len(stations) == 3
         self.station_A, self.station_central, self.station_B = sorted(stations, key=lambda x: x.position)
@@ -188,6 +218,19 @@ class LuetkenhausProtocol(Protocol):
         return
 
     def check(self):
+        """Checks world state and schedules new events.
+
+        Summary of the Protocol:
+        Establish a left link and a right link.
+        Then perform entanglement swapping.
+        Record metrics about the long distance pair.
+        Repeat.
+
+        Returns
+        -------
+        None
+
+        """
         # this protocol will only ever act if the event_queue is empty
         if self.world.event_queue:
             return
