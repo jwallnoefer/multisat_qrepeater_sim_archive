@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 from world import World
-from events import Event, SourceEvent, EventQueue
+from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue
 
 
 class DummyEvent(Event):
@@ -23,6 +23,10 @@ class TestEvents(unittest.TestCase):
 
     def test_source_event(self):
         event = SourceEvent(time=0, source=MagicMock(), initial_state=MagicMock())
+        self._aux_general_test(event)
+
+    def test_entanglement_swapping_event(self):
+        event = EntanglementSwappingEvent(time=0, pairs=MagicMock(), error_func=MagicMock())
         self._aux_general_test(event)
 
 
