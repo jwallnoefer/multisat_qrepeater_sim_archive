@@ -3,7 +3,7 @@ import abc
 from abc import abstractmethod
 import libs.matrix as mat
 import numpy as np
-from quantum_objects import Pair
+import quantum_objects
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -170,10 +170,10 @@ class EntanglementSwappingEvent(Event):
         my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
         two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
         two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
-        new_pair = Pair(world=left_pair.world, qubits=[left_pair.qubits[0], right_pair.qubits[1]],
-                        initial_state=two_qubit_state,
-                        initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add,
-                        initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
+        new_pair = quantum_objects.Pair(world=left_pair.world, qubits=[left_pair.qubits[0], right_pair.qubits[1]],
+                                        initial_state=two_qubit_state,
+                                        initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add,
+                                        initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
         # cleanup
         left_pair.qubits[1].destroy()
         right_pair.qubits[0].destroy()
@@ -203,6 +203,21 @@ class EventQueue(object):
 
     def __len__(self):
         return len(self.queue)
+
+    @property
+    def next_event(self):
+        """Helper property to access next scheduled event.
+
+        Returns
+        -------
+        Event or None
+            The next scheduled event. None if the event queue is empty.
+
+        """
+        try:
+            return self.queue[0]
+        except IndexError:
+            return None
 
     def add_event(self, event):
         """Add an event to the queue.
@@ -270,8 +285,6 @@ class EventQueue(object):
             else:
                 break
         self.current_time = target_time
-
-
 
     def advance_time(self, time_interval):
         """Helper method to manually advance time.

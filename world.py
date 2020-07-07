@@ -36,16 +36,7 @@ class World(object):
         None
 
         """
-        if isinstance(world_object, Station):
-            object_type = "Station"
-        elif isinstance(world_object, Source):
-            object_type = "Source"
-        elif isinstance(world_object, Pair):
-            object_type = "Pair"
-        elif isinstance(world_object, Qubit):
-            object_type = "Qubit"
-        else:
-            object_type = world_object.__class__.__name__
+        object_type = world_object.type
         if object_type not in self.world_objects:
             self.world_objects[object_type] = []
         self.world_objects[object_type] += [world_object]
