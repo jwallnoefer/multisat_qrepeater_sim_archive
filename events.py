@@ -219,7 +219,14 @@ class EventQueue(object):
         -------
         None
 
+        Raises
+        ------
+        ValueError
+            If `event.time` is in the past.
+
         """
+        if event.time < self.current_time:
+            raise ValueError("EventQueue.add_event tried to schedule an event in the past.")
         event.event_queue = self
         self.queue += [event]
         self.queue.sort(key=lambda x: x.time)
@@ -237,6 +244,35 @@ class EventQueue(object):
         event.resolve()
         self.queue = self.queue[1:]
 
+    def resolve_until(self, target_time):
+        """Resolve events until `target_time` is reached.
+
+        Parameters
+        ----------
+        target_time : scalar
+            Resolve until current_time is this.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If `target_time` lies in the past.
+        """
+        if target_time < self.current_time:
+            raise ValueError("EventQueue.resolve_until cannot resolve to a time in the past.")
+        while self.queue:
+            event = self.queue[0]
+            if event.time <= target_time:
+                self.resolve_next_event()
+            else:
+                break
+        self.current_time = target_time
+
+
+
     def advance_time(self, time_interval):
         """Helper method to manually advance time.
 
@@ -249,6 +285,10 @@ class EventQueue(object):
         -------
         None
 
+        Raises
+        ------
+        ValueError
+            If an event is skipped during the `time_interval`.
         """
         self.current_time += time_interval
         if self.queue and self.queue[0].time < self.current_time:
