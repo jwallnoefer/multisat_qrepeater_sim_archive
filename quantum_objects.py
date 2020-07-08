@@ -125,6 +125,12 @@ class Pair(WorldObject):
         The two qubits that are part of this entangled Pair.
     initial_state : np.ndarray
         The two qubit system is intialized with this density matrix.
+    initial_cost_add : scalar or None
+        Initial resource cost (in cumulative channel uses). Can be left None if
+        tracking is not done. Default: None
+    initial_cost_max : scalar or None
+        Initial resource cost (in max channel uses). Can be left None if
+        tracking is not done. Default: None
 
     Attributes
     ----------
@@ -136,6 +142,12 @@ class Pair(WorldObject):
         Alternative way to access `self.qubits[1]`
     qubits : List of qubits
         The two qubits that are part of this entangled Pair.
+    resource_cost_add : scalar or None
+        cumulative channel uses that were needed to create this pair.
+        None means resource are not tracked.
+    resource_cost_max : scalar or None
+        max channel uses that were needed to create this pair.
+        None means resource are not tracked.
     type : str
         "Pair"
 
@@ -209,6 +221,8 @@ class Station(WorldObject):
         Numerical label for the station.
     position : scalar
         Position in meters in the 1D line for this linear repeater.
+    memory_noise : callable or None
+        Should take parameters rho (density matrix) and t (time). Default: None
 
     Attributes
     ----------

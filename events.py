@@ -129,8 +129,8 @@ class EntanglementSwappingEvent(Event):
         Time at which the event will be resolved.
     pairs : list of Pairs
         The left pair and the right pair.
-    error_func : callable
-        A four-qubit map.
+    error_func : callable or None
+        A four-qubit map. Default: None
 
     Attributes
     ----------
@@ -138,7 +138,7 @@ class EntanglementSwappingEvent(Event):
     error_func
 
     """
-    def __init__(self, time, pairs, error_func):
+    def __init__(self, time, pairs, error_func=None):
         self.pairs = pairs
         self.error_func = error_func  # currently a four-qubit channel, would be nicer as two-qubit channel that gets applied to the right qubits
         super(EntanglementSwappingEvent, self).__init__(time)
@@ -166,7 +166,8 @@ class EntanglementSwappingEvent(Event):
         right_pair.update_time()
         four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
         # non-ideal-bell-measurement
-        four_qubit_state = self.error_func(four_qubit_state)
+        if self.error_func is not None:
+            four_qubit_state = self.error_func(four_qubit_state)
         my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
         two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
         two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
