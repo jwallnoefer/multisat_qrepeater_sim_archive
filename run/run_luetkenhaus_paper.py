@@ -5,7 +5,7 @@ from world import World
 from events import SourceEvent, GenericEvent, EntanglementSwappingEvent
 import libs.matrix as mat
 import numpy as np
-from aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel, assert_dir
+from libs.aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel, assert_dir
 import matplotlib.pyplot as plt
 from warnings import warn
 

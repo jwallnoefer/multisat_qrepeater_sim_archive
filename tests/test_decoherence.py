@@ -8,7 +8,7 @@ in its own file.
 import unittest
 from world import World
 from quantum_objects import Pair, Station
-from aux_functions import x_noise_channel, z_noise_channel
+from libs.aux_functions import x_noise_channel, z_noise_channel
 import libs.matrix as mat
 import numpy as np
 

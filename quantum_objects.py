@@ -2,7 +2,7 @@ import sys
 import abc
 from abc import abstractmethod
 from warnings import warn
-from aux_functions import apply_single_qubit_map
+from libs.aux_functions import apply_single_qubit_map
 import events
 
 if sys.version_info >= (3, 4):

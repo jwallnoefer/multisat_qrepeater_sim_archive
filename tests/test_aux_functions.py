@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, call
 import numpy as np
-from aux_functions import apply_single_qubit_map, w_noise_channel
+from libs.aux_functions import apply_single_qubit_map, w_noise_channel
 import libs.matrix as mat
 
 def _single_qubit_wnoise(rho, p):

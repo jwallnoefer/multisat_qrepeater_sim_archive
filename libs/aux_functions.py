@@ -2,6 +2,22 @@ import os
 import numpy as np
 import libs.matrix as mat
 
+def binary_entropy(p):
+    if p == 1 or p == 0:
+        return 0
+    else:
+        return -p * np.log2(p) - (1 - p) * np.log2((1 - p))
+
+def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_interval):
+    e_z = 1 - np.sum(correlations_z)/len(correlations_z)
+    e_x = 1 - np.sum(correlations_x)/len(correlations_x)
+    return len(correlations_z) / time_interval * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+
+def calculate_keyrate_channel_use(correlations_z, correlations_x, err_corr_ineff, resource_list):
+    e_z = 1 - np.sum(correlations_z)/len(correlations_z)
+    e_x = 1 - np.sum(correlations_x)/len(correlations_x)
+    return len(correlations_z) / np.sum(resource_list) * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+
 def assert_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
