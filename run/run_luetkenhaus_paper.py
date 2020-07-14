@@ -1,4 +1,4 @@
-import os
+import os, sys; sys.path.insert(0, os.path.abspath("."))
 from quantum_objects import Source, SchedulingSource, Station, Pair
 from protocol import Protocol
 from world import World
