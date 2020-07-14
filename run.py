@@ -40,3 +40,4 @@ if __name__ == "__main__":
         print("World objects: " + str(world.world_objects))
         world.event_queue.resolve_next_event()
         input("Press Enter to continue...")
+        
