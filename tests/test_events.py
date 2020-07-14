@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
 from world import World
-from events import Event, SourceEvent, EventQueue
+from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue
+import numpy as np
 
 
 class DummyEvent(Event):
@@ -25,6 +26,10 @@ class TestEvents(unittest.TestCase):
         event = SourceEvent(time=0, source=MagicMock(), initial_state=MagicMock())
         self._aux_general_test(event)
 
+    def test_entanglement_swapping_event(self):
+        event = EntanglementSwappingEvent(time=0, pairs=MagicMock(), error_func=MagicMock())
+        self._aux_general_test(event)
+
 
 class TestEventQueue(unittest.TestCase):
     def setUp(self):
@@ -39,17 +44,32 @@ class TestEventQueue(unittest.TestCase):
         for event in more_dummy_events:
             self.event_queue.add_event(event)
         self.assertEqual(len(self.event_queue), num_events + 1)
+        # trying to schedule event in the past
+        with self.assertRaises(ValueError):
+            self.event_queue.add_event(DummyEvent(time=-2))
 
     def test_resolving_events(self):
         mockEvent1 = MagicMock(time=0)
         mockEvent2 = MagicMock(time=1)
         self.event_queue.add_event(mockEvent2)
-        self.event_queue.add_event(mockEvent1)
+        self.event_queue.add_event(mockEvent1) # events added to queue in wrong order
         self.event_queue.resolve_next_event()
         mockEvent1.resolve.assert_called_once()
         mockEvent2.resolve.assert_not_called()
         self.event_queue.resolve_next_event()
         mockEvent2.resolve.assert_called_once()
+
+    def test_resolve_until(self):
+        num_events = 20
+        mock_events = [MagicMock(time=i) for i in range(num_events)]
+        for event in mock_events:
+            self.event_queue.add_event(event)
+        target_time=5
+        self.event_queue.resolve_until(target_time)
+        self.assertEqual(len(self.event_queue), num_events-(np.floor(target_time)+1))
+        self.assertEqual(self.event_queue.current_time, target_time)
+        with self.assertRaises(ValueError): # if given target_time in the past
+            self.event_queue.resolve_until(0)
 
 
 if __name__ == '__main__':

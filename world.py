@@ -1,5 +1,5 @@
 from events import EventQueue
-from quantum_objects import Station, Source
+from quantum_objects import Station, Source, Pair, Qubit
 
 
 class World(object):
@@ -36,7 +36,7 @@ class World(object):
         None
 
         """
-        object_type = world_object.__class__.__name__
+        object_type = world_object.type
         if object_type not in self.world_objects:
             self.world_objects[object_type] = []
         self.world_objects[object_type] += [world_object]
@@ -57,43 +57,3 @@ class World(object):
         object_type = world_object.__class__.__name__
         type_list = self.world_objects[object_type]
         type_list.remove(world_object)
-
-    def _create_world_object(self, ObjectClass, *args, **kwargs):
-        return ObjectClass(self, *args, **kwargs)
-
-    def create_station(self, id, position):
-        """Create a Station object in this world.
-
-        Parameters
-        ----------
-        id : int
-            Numerical label for the station.
-        position : scalar
-            Position in meters in the 1D line for this linear repeater.
-
-        Returns
-        -------
-        Station
-            The newly created Station object.
-
-        """
-        return self._create_world_object(Station, id, position)
-
-    def create_source(self, position, target_stations):
-        """Create a Source of entangled pairs in this world.
-
-        Parameters
-        ----------
-        position : scalar
-            Position in meters in the 1D line for this linear repeater.
-        target_stations : list of Stations
-            The two stations the source to which the source sends the entangled
-            pairs, usually the neighboring repeater stations.
-
-        Returns
-        -------
-        Source
-            The newly created Source object.
-
-        """
-        return self._create_world_object(Source, position, target_stations)
