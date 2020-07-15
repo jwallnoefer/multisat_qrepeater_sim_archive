@@ -121,7 +121,7 @@ class SourceEvent(Event):
 
 
 class EntanglementSwappingEvent(Event):
-    """Short summary.
+    """An event to perform entanglement swapping.
 
     Parameters
     ----------
@@ -144,7 +144,7 @@ class EntanglementSwappingEvent(Event):
         super(EntanglementSwappingEvent, self).__init__(time)
 
     def __repr__(self):
-        pass
+        return self.__class__.__name__ + "(time=%s, pairs=%s, error_func=%s)" % (str(self.time), str(self.pairs), repr(self.error_func))
 
     def resolve(self):
         """Resolve the event.
@@ -181,6 +181,46 @@ class EntanglementSwappingEvent(Event):
         left_pair.destroy()
         right_pair.destroy()
 
+
+class DiscardQubitEvent(Event):
+    """Event to discard a qubit and associated pair.
+
+    For example if the qubit sat in memory too long and is discarded.
+
+    Parameters
+    ----------
+    time : scalar
+        Time at which the event will be resolved.
+    qubit : Qubit
+        The Qubit that will be discarded.
+
+    Attributes
+    ----------
+    qubit
+
+    """
+    def __init__(self, time, qubit):
+        self.qubit = qubit
+        super(DiscardQubitEvent, self).__init__(time)
+
+    def __repr__(self):
+        return self.__class__.__name__ + "(time=%s, qubit=%s)" % (str(self.time), str(self.qubit))
+
+    def resolve(self):
+        """Discards the qubit and associated pair, if the qubit still exists.
+
+        Returns
+        -------
+        None
+
+        """
+        if qubit in qubit.world.world_objects["Qubit"]:  # only do something if qubit still exists
+            if qubit.pair is not None:
+                qubit.pair.qubits[0].destroy()
+                qubit.pair.qubits[1].destroy()
+                qubit.pair.destroy()
+            else:
+                qubit.destroy()
 
 
 class EventQueue(object):

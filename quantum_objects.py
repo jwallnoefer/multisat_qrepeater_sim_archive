@@ -223,6 +223,9 @@ class Station(WorldObject):
         Position in meters in the 1D line for this linear repeater.
     memory_noise : callable or None
         Should take parameters rho (density matrix) and t (time). Default: None
+    memory_cutoff_time : scalar or None
+        Qubits will be discarded after this amount of time in memory.
+        Default: None
 
     Attributes
     ----------
@@ -237,11 +240,12 @@ class Station(WorldObject):
 
     """
 
-    def __init__(self, world, id, position, memory_noise=None):
+    def __init__(self, world, id, position, memory_noise=None, memory_cutoff_time=None):
         self.id = id
         self.position = position
         self.qubits = []
         self.memory_noise = memory_noise
+        self.memory_cutoff_time = memory_cutoff_time
         super(Station, self).__init__(world)
 
     def __str__(self):
@@ -262,6 +266,9 @@ class Station(WorldObject):
         """
         new_qubit = Qubit(world=self.world, station=self)
         self.qubits += [new_qubit]
+        if self.memory_cutoff_time is not None:
+            discard_event = events.DiscardQubitEvent(time=self.event_queue.current_time + self.memory_cutoff_time, qubit=new_qubit)
+            self.event_queue.add_event(discard_event)
         return new_qubit
 
     def remove_qubit(self, qubit):
