@@ -22,3 +22,18 @@ plt.grid()
 plt.legend()
 plt.savefig(os.path.join(result_path, "comparison.png"))
 plt.show()
+
+
+path_alternative = os.path.join("results", "luetkenhaus_as_nsp")
+x = np.loadtxt(os.path.join(path_alternative, "length_list_seq.txt"), dtype=np.complex)
+y = np.loadtxt(os.path.join(path_alternative, "key_per_resource_list_seq.txt"), dtype=np.complex) / 2
+
+plt.scatter(x1, y1, label="sequential, simulation")
+plt.plot(x2, y2, label="sequential, analytical")
+plt.scatter(x, y, label="alternative simulation")
+plt.yscale("log")
+plt.xlabel("total length")
+plt.ylabel("key rate per channel use")
+plt.grid()
+plt.legend()
+plt.show()
