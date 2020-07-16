@@ -181,6 +181,27 @@ def run(length, max_iter, params, mode="sim"):
             except StopIteration:
                 return None
 
+        def _left_pair_is_scheduled(self):
+            try:
+                next(filter(lambda event: isinstance(event, SourceEvent) and
+                                          (self.station_A in event.source.target_stations) and
+                                          (self.station_central in event.source.target_stations),
+                            self.world.event_queue.queue))
+                return True
+            except StopIteration:
+                return False
+
+        def _right_pair_is_scheduled(self):
+            try:
+                next(filter(lambda event: isinstance(event, SourceEvent) and
+                                          (self.station_central in event.source.target_stations) and
+                                          (self.station_B in event.source.target_stations),
+                            self.world.event_queue.queue))
+                return True
+            except StopIteration:
+                return False
+
+
         def _eval_pair(self, long_range_pair):
             comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
             comm_time = comm_distance / C
@@ -210,34 +231,34 @@ def run(length, max_iter, params, mode="sim"):
             Then perform entanglement swapping.
             Record metrics about the long distance pair.
             Repeat.
+            However, sometimes pairs will be discarded because of memory cutoff
+            times, which means we need to check regularly if that happened.
 
             Returns
             -------
             None
 
             """
-            # this protocol will only ever act if the event_queue is empty
-            if self.world.event_queue:
-                return
             try:
                 pairs = self.world.world_objects["Pair"]
             except KeyError:
                 pairs = []
-            # if there are no pairs, begin protocol
-            if not pairs:
-                if self.mode == "seq":
-                    self.source_A.schedule_event()
-                elif self.mode == "sim":
-                    self.source_A.schedule_event()
-                    self.source_B.schedule_event()
-                return
-            # in sequential mode, if there is only a pair on the left side, schedule creation of right pair
             left_pair = self._get_left_pair()
             right_pair = self._get_right_pair()
-            if right_pair is None and left_pair:
-                if self.mode == "seq":
+            # schedule pair creation if there is no pair and pair creation is not already scheduled
+            if self.mode == "sim":
+                if not left_pair and not self._left_pair_is_scheduled():
+                    self.source_A.schedule_event()
+                if not right_pair and not self._right_pair_is_scheduled():
                     self.source_B.schedule_event()
-                return
+            elif self.mode == "seq":
+                if not pairs and not self._left_pair_is_scheduled() and not self._right_pair_is_scheduled():
+                    self.source_A.schedule_event()
+                elif left_pair and not right_pair and not self._right_pair_is_scheduled():
+                    self.source_B.schedule_event()
+                elif right_pair and not left_pair and not self._left_pair_is_scheduled():  # this might happen if left pair is discarded
+                    self.source_A.schedule_event()
+            # rest continues the same for both modes
             if right_pair and left_pair:
                 ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair], error_func=imperfect_bsm_err_func)
                 self.world.event_queue.add_event(ent_swap_event)
@@ -251,7 +272,8 @@ def run(length, max_iter, params, mode="sim"):
                 long_range_pair.destroy()
                 self.check()
                 return
-            warn("LuetkenhausProtocol encountered unknown world state. May be trapped in an infinite loop?")
+            if not self.world.event_queue.queue:
+                warn("Protocol may be stuck in a state without events.")
 
     world = World()
     station_A = Station(world, id=0, position=0, memory_noise=None)
