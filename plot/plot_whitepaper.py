@@ -32,6 +32,7 @@ plt.legend()
 plt.grid()
 plt.xlabel("L [km]")
 plt.ylabel("secrate key rate per channel use [dB]")
+plt.savefig(os.path.join(result_path, "available", "plot.png"))
 plt.show()
 
 # now plot future values
@@ -51,4 +52,5 @@ plt.legend()
 plt.grid()
 plt.xlabel("L [km]")
 plt.ylabel("secrate key rate per channel use [dB]")
+plt.savefig(os.path.join(result_path, "future", "plot.png"))
 plt.show()
