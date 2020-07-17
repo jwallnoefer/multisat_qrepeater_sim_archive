@@ -44,7 +44,7 @@ future_params = [params_future_NV, params_future_SiV, params_future_Qdot, params
 name_list = ["NV", "SiV", "Qdot", "Ca", "Rb"]
 
 if __name__ == "__main__":
-    length_list = np.arange(25000, 425000, 25000)
+    # length_list = np.arange(25000, 425000, 25000)
     # for name, params in zip(name_list, available_params):
     #     print(name)
     #     key_per_time_list = []
@@ -61,19 +61,40 @@ if __name__ == "__main__":
     #     np.savetxt(os.path.join(path, "length_list.txt"), length_list)
     #     np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
     #     np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
-    for name, params in zip(name_list, future_params):
-        print(name)
+    # for name, params in zip(name_list, future_params):
+    #     print(name)
+    #     key_per_time_list = []
+    #     key_per_resource_list = []
+    #     for l in length_list:
+    #         print(l)
+    #         p = run(length=l, max_iter=10000, params=params, mode="sim")
+    #         key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time + 2 * l / C)
+    #         key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
+    #         key_per_time_list += [key_per_time]
+    #         key_per_resource_list += [key_per_resource]
+    #     path = os.path.join(result_path, "future", name)
+    #     assert_dir(path)
+    #     np.savetxt(os.path.join(path, "length_list.txt"), length_list)
+    #     np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
+    #     np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
+
+    name = "Rb"
+    params = params_available_Rb
+    length_list = np.arange(25000, 425000, 25000)
+    for m in [200, 500, 1000, 2000, 5000, 10000, 20000]:
+        print("m=%d" % m)
         key_per_time_list = []
         key_per_resource_list = []
         for l in length_list:
             print(l)
-            p = run(length=l, max_iter=10000, params=params, mode="sim")
+            trial_time_manual = l / C
+            p = run(length=l, max_iter=10000, params=params, cutoff_time=m*trial_time_manual + 10**-6*trial_time_manual, mode="sim")
             key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time + 2 * l / C)
             key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
             key_per_time_list += [key_per_time]
             key_per_resource_list += [key_per_resource]
-        path = os.path.join(result_path, "future", name)
+        path = os.path.join(result_path, "available", "m_test", name)
         assert_dir(path)
-        np.savetxt(os.path.join(path, "length_list.txt"), length_list)
-        np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
-        np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
+        np.savetxt(os.path.join(path, "length_list_%d.txt" % m), length_list)
+        np.savetxt(os.path.join(path, "key_per_time_list_%d.txt" % m), key_per_time_list)
+        np.savetxt(os.path.join(path, "key_per_resource_list_%d.txt" % m), key_per_resource_list)

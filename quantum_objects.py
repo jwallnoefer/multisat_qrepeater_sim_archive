@@ -4,6 +4,7 @@ from abc import abstractmethod
 from warnings import warn
 from libs.aux_functions import apply_single_qubit_map
 import events
+from collections import defaultdict
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -161,6 +162,23 @@ class Pair(WorldObject):
         self.qubit2.pair = self
         self.resource_cost_add = initial_cost_add
         self.resource_cost_max = initial_cost_max
+        # if there are lingering resources trackings to be done, add them now
+        if self.resource_cost_add is not None or self.resource_cost_max is not None:
+            resources1 = self.qubit1.station.resource_tracking[self.qubit2.station]
+            resources2 = self.qubit2.station.resource_tracking[self.qubit1.station]
+            assert resources1 == resources2
+            if self.resource_cost_add is not None:
+                self.resource_cost_add += resources1["resource_cost_add"]
+                # then reset count
+                resources1["resource_cost_add"] = 0  # changing the mutable object will also change it in the real tracking dictionary
+                resources2["resource_cost_add"] = 0
+            if self.resource_cost_max is not None:
+                self.resource_cost_max += resources1["resource_cost_max"]
+                # then reset count
+                resources1["resource_cost_max"] = 0  # changing the mutable object will also change it in the real tracking dictionary
+                resources2["resource_cost_max"] = 0
+
+
         super(Pair, self).__init__(world)
 
     @property
@@ -244,6 +262,7 @@ class Station(WorldObject):
         self.id = id
         self.position = position
         self.qubits = []
+        self.resource_tracking = defaultdict(lambda : {"resource_cost_add": 0, "resource_cost_max":0})
         self.memory_noise = memory_noise
         self.memory_cutoff_time = memory_cutoff_time
         super(Station, self).__init__(world)
@@ -276,6 +295,9 @@ class Station(WorldObject):
             self.qubits.remove(qubit)
         except ValueError:
             warn("Tried to remove qubit %s from station %s, but the station was not tracking that qubit." % (repr(qubit), repr(self)))
+            # print(self.event_queue.current_time)
+            # print(self.event_queue.queue)
+            # print(self.world.world_objects)
 
 
 class Source(WorldObject):

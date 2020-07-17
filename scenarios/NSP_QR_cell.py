@@ -36,7 +36,7 @@ def construct_dephasing_noise_channel(dephasing_time):
 
     return dephasing_noise_channel
 
-def run(length, max_iter, params, mode="sim"):
+def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     # unpack the parameters
     try:
         P_LINK = params["P_LINK"]
@@ -261,6 +261,7 @@ def run(length, max_iter, params, mode="sim"):
             # rest continues the same for both modes
             if right_pair and left_pair:
                 ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair], error_func=imperfect_bsm_err_func)
+                # print("an entswap event was scheduled at %.8f while event_queue looked like this:" % self.world.event_queue.current_time, self.world.event_queue.queue)
                 self.world.event_queue.add_event(ent_swap_event)
                 return
             long_range_pair = self._get_long_range_pair()
@@ -278,7 +279,7 @@ def run(length, max_iter, params, mode="sim"):
     world = World()
     station_A = Station(world, id=0, position=0, memory_noise=None)
     station_B = Station(world, id=1, position=length, memory_noise=None)
-    station_central = Station(world, id=2, position=length/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP))
+    station_central = Station(world, id=2, position=length/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP), memory_cutoff_time=cutoff_time)
     source_A = SchedulingSource(world, position=length/2, target_stations=[station_A, station_central], time_distribution=time_distribution, state_generation=state_generation)
     source_B = SchedulingSource(world, position=length/2, target_stations=[station_central, station_B], time_distribution=time_distribution, state_generation=state_generation)
     protocol = TwoLinkProtocol(world, mode=mode)

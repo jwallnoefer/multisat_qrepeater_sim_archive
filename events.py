@@ -117,6 +117,7 @@ class SourceEvent(Event):
         None
 
         """
+        # print("A source event happened at time", self.time, "while queue looked like this:", self.event_queue.queue)
         self.source.generate_pair(self.initial_state, *self.generation_args, **self.generation_kwargs)
 
 
@@ -214,13 +215,22 @@ class DiscardQubitEvent(Event):
         None
 
         """
-        if qubit in qubit.world.world_objects["Qubit"]:  # only do something if qubit still exists
-            if qubit.pair is not None:
-                qubit.pair.qubits[0].destroy()
-                qubit.pair.qubits[1].destroy()
-                qubit.pair.destroy()
+        if self.qubit in self.qubit.world.world_objects["Qubit"]:  # only do something if qubit still exists
+            if self.qubit.pair is not None:
+                station1 = self.qubit.pair.qubits[0].station
+                station2 = self.qubit.pair.qubits[1].station
+                if self.qubit.pair.resource_cost_add is not None:
+                    station1.resource_tracking[station2]["resource_cost_add"] = self.qubit.pair.resource_cost_add
+                    station2.resource_tracking[station1]["resource_cost_add"] = self.qubit.pair.resource_cost_add
+                if self.qubit.pair.resource_cost_max is not None:
+                    station1.resource_tracking[station2]["resource_cost_max"] = self.qubit.pair.resource_cost_max
+                    station2.resource_tracking[station1]["resource_cost_max"] = self.qubit.pair.resource_cost_max
+                self.qubit.pair.qubits[0].destroy()
+                self.qubit.pair.qubits[1].destroy()
+                self.qubit.pair.destroy()
             else:
-                qubit.destroy()
+                self.qubit.destroy()
+            # print("A Discard Event happened with eventqueue:", self.qubit.world.event_queue.queue)
 
 
 class EventQueue(object):
@@ -296,6 +306,15 @@ class EventQueue(object):
 
         """
         event = self.queue[0]
+        if isinstance(event, DiscardQubitEvent):
+            # try to find another type of event at the same time
+            try:
+                better_event = next(filter(lambda x: x.time == event.time and not isinstance(x, DiscardQubitEvent), self.queue))
+                self.queue.remove(better_event)
+                self.queue.insert(0, better_event)
+                event = self.queue[0]
+            except StopIteration:
+                pass
         self.current_time = event.time
         event.resolve()
         self.queue = self.queue[1:]
