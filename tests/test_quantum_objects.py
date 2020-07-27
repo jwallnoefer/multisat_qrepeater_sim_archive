@@ -10,6 +10,7 @@ import libs.matrix as mat
 class TestQuantumObjects(unittest.TestCase):
     def setUp(self):
         self.world = World()
+        self.event_queue = self.world.event_queue
 
     def _aux_general_test(self, quantum_object):
         self.assertIsInstance(quantum_object, WorldObject)
@@ -42,6 +43,16 @@ class TestQuantumObjects(unittest.TestCase):
         # now test if destroying the qubit properly deregisters it
         qubit.destroy()
         self.assertNotIn(qubit, station.qubits)
+
+    def test_cutoff_time_station(self):
+        cutoff_time = np.random.random()*40
+        station = Station(world=self.world, id=1, position=0, memory_cutoff_time=cutoff_time)
+        qubit = station.create_qubit()
+        self.assertIn(qubit, self.world.world_objects[qubit.type])
+        self.event_queue.resolve_until(cutoff_time - 10**-6*cutoff_time)
+        self.assertIn(qubit, self.world.world_objects[qubit.type])
+        self.event_queue.resolve_until(cutoff_time)
+        self.assertNotIn(qubit, self.world.world_objects[qubit.type])
 
     def test_source(self):
         stations = [Station(world=self.world, id=i, position=200 * i) for i in range(2)]

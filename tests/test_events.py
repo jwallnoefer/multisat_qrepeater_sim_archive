@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
 from world import World
-from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue
+from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue, DiscardQubitEvent
+from quantum_objects import Qubit, Pair
 import numpy as np
 
 
@@ -29,6 +30,27 @@ class TestEvents(unittest.TestCase):
     def test_entanglement_swapping_event(self):
         event = EntanglementSwappingEvent(time=0, pairs=MagicMock(), error_func=MagicMock())
         self._aux_general_test(event)
+
+    def test_discard_qubit_event(self):
+        world = World()
+        qubit = Qubit(world=world, station=MagicMock())
+        event = DiscardQubitEvent(time=0, qubit=qubit)
+        self._aux_general_test(event)
+        # now test whether qubit actually gets discarded
+        self.assertIn(qubit, world.world_objects[qubit.type])
+        event.resolve()
+        self.assertNotIn(qubit, world.world_objects[qubit.type])
+        # now test whether the whole pair gets discarded if a qubit is discarded
+        qubits = [Qubit(world=world, station=MagicMock()) for i in range(2)]
+        pair = Pair(world=world, qubits=qubits, initial_state=MagicMock())
+        event = DiscardQubitEvent(time=0, qubit=qubits[0])
+        self.assertIn(qubits[0], world.world_objects[qubits[0].type])
+        self.assertIn(qubits[1], world.world_objects[qubits[1].type])
+        self.assertIn(pair, world.world_objects[pair.type])
+        event.resolve()
+        self.assertNotIn(qubits[0], world.world_objects[qubits[0].type])
+        self.assertNotIn(qubits[1], world.world_objects[qubits[1].type])
+        self.assertNotIn(pair, world.world_objects[pair.type])
 
 
 class TestEventQueue(unittest.TestCase):
