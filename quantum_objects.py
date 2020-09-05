@@ -227,6 +227,17 @@ class Pair(WorldObject):
         if map1 is not None:
             self.state = apply_single_qubit_map(map_func=map1, qubit_index=1, rho=self.state, t=time_interval)
 
+    def destroy_and_track_resources(self):
+        station1 = self.qubits[0].station
+        station2 = self.qubits[1].station
+        if self.resource_cost_add is not None:
+            station1.resource_tracking[station2]["resource_cost_add"] = self.resource_cost_add
+            station2.resource_tracking[station1]["resource_cost_add"] = self.resource_cost_add
+        if self.resource_cost_max is not None:
+            station1.resource_tracking[station2]["resource_cost_max"] = self.resource_cost_max
+            station2.resource_tracking[station1]["resource_cost_max"] = self.resource_cost_max
+        self.destroy()
+
 
 class Station(WorldObject):
     """A repeater station.
