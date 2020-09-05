@@ -231,11 +231,11 @@ class Pair(WorldObject):
         station1 = self.qubits[0].station
         station2 = self.qubits[1].station
         if self.resource_cost_add is not None:
-            station1.resource_tracking[station2]["resource_cost_add"] = self.resource_cost_add
-            station2.resource_tracking[station1]["resource_cost_add"] = self.resource_cost_add
+            station1.resource_tracking[station2]["resource_cost_add"] += self.resource_cost_add
+            station2.resource_tracking[station1]["resource_cost_add"] += self.resource_cost_add
         if self.resource_cost_max is not None:
-            station1.resource_tracking[station2]["resource_cost_max"] = self.resource_cost_max
-            station2.resource_tracking[station1]["resource_cost_max"] = self.resource_cost_max
+            station1.resource_tracking[station2]["resource_cost_max"] += self.resource_cost_max
+            station2.resource_tracking[station1]["resource_cost_max"] += self.resource_cost_max
         self.destroy()
 
 
@@ -273,7 +273,7 @@ class Station(WorldObject):
         self.id = id
         self.position = position
         self.qubits = []
-        self.resource_tracking = defaultdict(lambda : {"resource_cost_add": 0, "resource_cost_max":0})
+        self.resource_tracking = defaultdict(lambda : {"resource_cost_add": 0, "resource_cost_max": 0})
         self.memory_noise = memory_noise
         self.memory_cutoff_time = memory_cutoff_time
         super(Station, self).__init__(world)

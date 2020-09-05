@@ -2,6 +2,7 @@ import sys
 import abc
 from abc import abstractmethod
 import libs.matrix as mat
+from libs.aux_functions import dejmps_protocol
 import numpy as np
 import quantum_objects
 
@@ -217,20 +218,52 @@ class DiscardQubitEvent(Event):
         """
         if self.qubit in self.qubit.world.world_objects["Qubit"]:  # only do something if qubit still exists
             if self.qubit.pair is not None:
-                station1 = self.qubit.pair.qubits[0].station
-                station2 = self.qubit.pair.qubits[1].station
-                if self.qubit.pair.resource_cost_add is not None:
-                    station1.resource_tracking[station2]["resource_cost_add"] = self.qubit.pair.resource_cost_add
-                    station2.resource_tracking[station1]["resource_cost_add"] = self.qubit.pair.resource_cost_add
-                if self.qubit.pair.resource_cost_max is not None:
-                    station1.resource_tracking[station2]["resource_cost_max"] = self.qubit.pair.resource_cost_max
-                    station2.resource_tracking[station1]["resource_cost_max"] = self.qubit.pair.resource_cost_max
+                self.qubit.pair.destroy_and_track_resources()
                 self.qubit.pair.qubits[0].destroy()
                 self.qubit.pair.qubits[1].destroy()
-                self.qubit.pair.destroy()
             else:
                 self.qubit.destroy()
             # print("A Discard Event happened with eventqueue:", self.qubit.world.event_queue.queue)
+
+
+class EntanglementPurificationEvent(Event):
+    def __init__(self, time, pairs, protocol="dejmps"):
+        self.pairs = pairs
+        if protocol == "dejmps":
+            self.protocol = dejmps_protocol
+        elif callable(protocol):
+            self.protocol = protocol
+        else:
+            raise ValueError("EntanglementPurificationEvent got a protocol type that is not supported: " + repr(protocol))
+        super(EntanglementPurificationEvent, self).__init__(time)
+
+    def resolve(self):
+        """Probabilistically performs the entanglement purification protocol.
+
+        Returns
+        -------
+        None
+
+        """
+        # probably could use a check that pairs are between same stations?
+        for pair in pairs:
+            pair.update_time()
+        rho = mat.tensor(*[pair.state for pair in pairs])
+        p_suc, state = self.protocol(rho)
+        if np.random.random() <= p_suc:  # if successful
+            output_pair = pairs[0]
+            output_pair.state = state
+            if output_pair.resource_cost_add is not None:
+                output_pair.resource_cost_add = np.sum([pair.resource_cost_add for pair in pairs])
+            if output_pair.resource_cost_max is not None:
+                output_pair.resource_cost_max = np.sum([pair.resource_cost_max for pair in pairs])
+            for pair in pairs[1:]:  # pairs that have been destroyed in the process
+                pair.qubits[0].destroy()
+                pair.qubits[1].destroy()
+                pair.destroy()
+        else:
+            for pair in pairs:  # destroy all the involved pairs but track resources
+                pair.destroy_and_track_resources()
 
 
 class EventQueue(object):
