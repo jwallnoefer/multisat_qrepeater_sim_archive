@@ -89,11 +89,16 @@ class SourceEvent(Event):
         The source object generating the entangled pair.
     initial_state : np.ndarray
         Density matrix of the two qubit system being generated.
+    *args, **kwargs :
+        additional optional args and kwargs to pass to the the
+        generate_pair method of `source`
 
     Attributes
     ----------
     source
     initial_state
+    generation_args : additional args for the generate_pair method of source
+    generation_kwargs : additional kwargs for the generate_pair method of source
 
     """
 
