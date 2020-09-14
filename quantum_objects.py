@@ -39,7 +39,7 @@ class WorldObject(ABC):
         self.last_updated = self.event_queue.current_time
 
     def destroy(self):
-        """Remove this WordlObject from the world."""
+        """Remove this WorldObject from the world."""
         # in the future it might be nice to also remove associated events etc.
         self.world.deregister_world_object(self)
 
