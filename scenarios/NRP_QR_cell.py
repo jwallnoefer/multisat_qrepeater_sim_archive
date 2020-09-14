@@ -46,9 +46,12 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     except KeyError:
         P_LINK = 1.0
     try:
-        T_P = params["T_P"]  # preparation time
+        T_P = 1 / params["f_clock"]
     except KeyError:
-        T_P = 0
+        try:
+            T_P = params["T_P"]  # preparation time
+        except KeyError:
+            T_P = 0
     try:
         T_DP = params["T_DP"]  # dephasing time
     except KeyError:
