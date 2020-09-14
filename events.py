@@ -269,6 +269,8 @@ class EntanglementPurificationEvent(Event):
         else:
             for pair in pairs:  # destroy all the involved pairs but track resources
                 pair.destroy_and_track_resources()
+                pair.qubits[0].destroy()
+                pair.qubits[1].destroy()
 
 
 class EventQueue(object):
