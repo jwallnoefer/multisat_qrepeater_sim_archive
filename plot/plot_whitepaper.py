@@ -112,21 +112,10 @@ plt.ylim((-60, 0))
 plt.legend()
 plt.grid()
 plt.xlabel("L [km]")
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-plt.ylabel("secrate key rate per channel use [dB]")
-plt.savefig(os.path.join(result_path, "available", "plot.png"))
-=======
-=======
->>>>>>> Stashed changes
 plt.ylabel("secret key rate per channel use [dB]")
 plt.title("Available parameters")
 plt.savefig(os.path.join(result_path, "available", "compare.png"))
 plt.savefig(os.path.join(result_path, "available", "compare.pdf"))
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 plt.show()
 
 # now plot future values
@@ -149,19 +138,8 @@ plt.ylim((-60, 0))
 plt.legend()
 plt.grid()
 plt.xlabel("L [km]")
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-plt.ylabel("secrate key rate per channel use [dB]")
-plt.savefig(os.path.join(result_path, "future", "plot.png"))
-=======
-=======
->>>>>>> Stashed changes
 plt.ylabel("secret key rate per channel use [dB]")
 plt.title("Future parameters")
 plt.savefig(os.path.join(result_path, "future", "compare.png"))
 plt.savefig(os.path.join(result_path, "future", "compare.pdf"))
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 plt.show()
