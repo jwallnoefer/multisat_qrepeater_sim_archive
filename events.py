@@ -232,6 +232,27 @@ class DiscardQubitEvent(Event):
 
 
 class EntanglementPurificationEvent(Event):
+    """Short summary.
+
+    Parameters
+    ----------
+    time : scalar
+        Time at which the event will be resolved.
+    pairs : list of Pairs
+        The pairs involved in the entanglement purification protocol.
+    protocol : {"dejmps"} or callable
+        Can be one of the pre-installed or an arbitrary callable that takes
+        a tensor product of pair states as input and returns a tuple of
+        (success probability, state of a single pair) back.
+        So far only supports n->1 protocols.
+
+
+    Attributes
+    ----------
+    pairs
+    protocol
+
+    """
     def __init__(self, time, pairs, protocol="dejmps"):
         self.pairs = pairs
         if protocol == "dejmps":
@@ -242,6 +263,9 @@ class EntanglementPurificationEvent(Event):
             raise ValueError("EntanglementPurificationEvent got a protocol type that is not supported: " + repr(protocol))
         super(EntanglementPurificationEvent, self).__init__(time)
 
+    def __repr__(self):
+        return self.__class__.__name__ + "(time=%s, pairs=%s, protocol=%s)" % (repr(self.time), repr(self.pairs), repr(self.protocol))
+
     def resolve(self):
         """Probabilistically performs the entanglement purification protocol.
 
@@ -251,23 +275,23 @@ class EntanglementPurificationEvent(Event):
 
         """
         # probably could use a check that pairs are between same stations?
-        for pair in pairs:
+        for pair in self.pairs:
             pair.update_time()
-        rho = mat.tensor(*[pair.state for pair in pairs])
+        rho = mat.tensor(*[pair.state for pair in self.pairs])
         p_suc, state = self.protocol(rho)
         if np.random.random() <= p_suc:  # if successful
-            output_pair = pairs[0]
+            output_pair = self.pairs[0]
             output_pair.state = state
             if output_pair.resource_cost_add is not None:
-                output_pair.resource_cost_add = np.sum([pair.resource_cost_add for pair in pairs])
+                output_pair.resource_cost_add = np.sum([pair.resource_cost_add for pair in self.pairs])
             if output_pair.resource_cost_max is not None:
-                output_pair.resource_cost_max = np.sum([pair.resource_cost_max for pair in pairs])
-            for pair in pairs[1:]:  # pairs that have been destroyed in the process
+                output_pair.resource_cost_max = np.sum([pair.resource_cost_max for pair in self.pairs])
+            for pair in self.pairs[1:]:  # pairs that have been destroyed in the process
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
                 pair.destroy()
         else:
-            for pair in pairs:  # destroy all the involved pairs but track resources
+            for pair in self.pairs:  # destroy all the involved pairs but track resources
                 pair.destroy_and_track_resources()
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
