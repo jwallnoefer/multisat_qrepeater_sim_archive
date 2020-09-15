@@ -1,7 +1,7 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 import numpy as np
 import matplotlib.pyplot as plt
-from run.run_whitepaper_nrp import available_params, future_params, ms_available, ms_future
+from run.run_whitepaper_nrp import available_params, future_params
 from libs.aux_functions import binary_entropy
 
 L_ATT = 22
@@ -10,8 +10,8 @@ name_list = ["NV", "SiV", "Ca", "Rb"]
 color_list = ["blue", "green", "orange", "red"]
 available_params = available_params[0:2] + available_params[3:]
 future_params = future_params[0:2] + future_params[3:]
-ms_available = ms_available[0:2] + ms_available[3:]
-ms_future = ms_future[0:2] + ms_future[3:]
+ms_available = [p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in available_params]  # # 25/20/0/100/10 for NV/Ca/Qdot/Rb/SiV (current values on the left) and
+ms_future = [p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in future_params]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV (future values on the right).
 
 def skr_whitepaper(L, m, params):
     c = 2 * 10**8

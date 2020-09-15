@@ -43,8 +43,8 @@ params_future_Rb = {"P_LINK": 70 * 10**-2,
 available_params = [params_available_NV, params_available_SiV, params_available_Qdot, params_available_Ca, params_available_Rb]
 future_params = [params_future_NV, params_future_SiV, params_future_Qdot, params_future_Ca, params_future_Rb]
 name_list = ["NV", "SiV", "Qdot", "Ca", "Rb"]
-ms_available = [25, 10, 0, 20, 100]  # # 25/20/0/100/10 for NV/Ca/Qdot/Rb/SiV (current values on the left) and
-ms_future = [5000, 50, 0, 200, 500]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV (future values on the right).
+ms_available = [-p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in available_params]  # # 25/20/0/100/10 for NV/Ca/Qdot/Rb/SiV (current values on the left) and
+ms_future = [-p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in future_params]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV (future values on the right).
 
 
 def parallel_run(itera, params, length, cutoff_time):
@@ -66,7 +66,7 @@ if __name__ == "__main__":
          for l in length_list:
             print(l)
             def wrapper(itera):
-                return parallel_run(itera, params, l, None)
+                return parallel_run(itera, params, l, m*trial_time_manual)
             with mp.Pool(mp.cpu_count()) as pool:
                 rates = pool.map(wrapper, iters)
             av_rates = np.sum(np.array(rates), axis = 0) / 16
