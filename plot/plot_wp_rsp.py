@@ -17,15 +17,21 @@ def skr_whitepaper(L, m, params):
     c = 2 * 10**8
     p = params["P_LINK"] * np.exp(-L/2/(L_ATT * 1000))
     q = 1-p
-    R = p * (2 - p - 2 * q**(m+1)) / (3 - 2 * p - 2 * q**(m+1))
+    if m == None:
+        R = p * (2 - p) / (3 - 2 * p)
+    else:
+        R = p * (2 - p - 2 * q**(m+1)) / (3 - 2 * p - 2 * q**(m+1))
     t_coh = params["T_DP"]
     T_0 = 1 / params["f_clock"]
-    def PofMisj(j):
-        if j == 0:
-            return p / (2 - p)
-        else:
-            return 2 * p * q**j / (2 - p)
-    E = np.sum([PofMisj(j) * np.exp(-j * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
+    def PofMisj_nn(j):
+        return 2 * p * q**j / (2 - p)
+    if m == None:
+        m = 10**6
+    p_of_0 = p / (2-p)
+    j_arr = np.arange(1, m+1, 1)
+    E_num = np.sum(PofMisj_nn(j_arr) * np.exp(-j_arr * T_0 / t_coh)) + p_of_0
+    E_den = np.sum(PofMisj_nn(j_arr)) + p_of_0
+    E = E_num / E_den
     # E = np.sum([PofMisj(j) * np.exp(-(j) * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
     # print(np.sum([PofMisj(j) * np.exp(-(j + 2) * T_0 / t_coh) for j in range(m+1)]))
     # print(np.sum([PofMisj(j) for j in range(m+1)]))
@@ -47,6 +53,7 @@ for name, color in zip(name_list, color_list):
     path = os.path.join(result_path, "available", name)
     x = np.loadtxt(os.path.join(path, "length_list.txt")) / 1000
     y = 10 * np.log10(np.loadtxt(os.path.join(path, "key_per_resource_list.txt"), dtype=np.complex) / 2)
+    x = x[:len(y)]
     if name == "Ca":
         name = "Ca/Yb"
     plt.scatter(x, y, label=name, color=color)
@@ -71,6 +78,7 @@ for name, color in zip(name_list, color_list):
     path = os.path.join(result_path, "future", name)
     x = np.loadtxt(os.path.join(path, "length_list.txt")) / 1000
     y = 10 * np.log10(np.loadtxt(os.path.join(path, "key_per_resource_list.txt"), dtype=np.complex) / 2)
+    x = x[:len(y)]
     if name == "Ca":
         name = "Ca/Yb"
     plt.scatter(x, y, label=name, color=color)
@@ -98,10 +106,11 @@ for name, color, params, m in zip(name_list, color_list, available_params, ms_av
     path = os.path.join(result_path, "available", name)
     x = np.loadtxt(os.path.join(path, "length_list.txt")) / 1000
     y = 10 * np.log10(np.loadtxt(os.path.join(path, "key_per_resource_list.txt"), dtype=np.complex) / 2)
+    x = x[:len(y)]
     if name == "Ca":
         name = "Ca/Yb"
     plt.scatter(x, y, label=name, color=color)
-    y_whitepaper = 10 * np.log10([skr_whitepaper(l, m, params) / 2 for l in (x_base * 1000)])
+    y_whitepaper = 10 * np.log10([skr_whitepaper(l, None, params) / 2 for l in (x_base * 1000)])
     plt.plot(x_base, y_whitepaper, color=color)
 plt.xlim((0,400))
 plt.ylim((-60, 0))
@@ -124,10 +133,11 @@ for name, color, params,m  in zip(name_list, color_list, future_params, ms_futur
     path = os.path.join(result_path, "future", name)
     x = np.loadtxt(os.path.join(path, "length_list.txt")) / 1000
     y = 10 * np.log10(np.loadtxt(os.path.join(path, "key_per_resource_list.txt"), dtype=np.complex) / 2)
+    x = x[:len(y)]
     if name == "Ca":
         name = "Ca/Yb"
     plt.scatter(x, y, label=name, color=color)
-    y_whitepaper = 10 * np.log10([skr_whitepaper(l, m, params) / 2 for l in (x_base * 1000)])
+    y_whitepaper = 10 * np.log10([skr_whitepaper(l, None, params) / 2 for l in (x_base * 1000)])
     plt.plot(x_base, y_whitepaper, color=color)
 plt.xlim((0,400))
 plt.ylim((-60, 0))

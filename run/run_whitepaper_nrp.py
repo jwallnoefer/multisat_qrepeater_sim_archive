@@ -1,5 +1,6 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
-from scenarios.NSP_QR_cell import run
+import multiprocessing as mp
+from scenarios.NRP_QR_cell import run
 from libs.aux_functions import assert_dir, binary_entropy, calculate_keyrate_time, calculate_keyrate_channel_use
 import numpy as np
 import matplotlib.pyplot as plt
@@ -65,12 +66,15 @@ if __name__ == "__main__":
          for l in length_list:
             print(l)
             def wrapper(itera):
-                return parallel_run(itera, params, l, m*trial_time_manual)
+                return parallel_run(itera, params, l, None)
             with mp.Pool(mp.cpu_count()) as pool:
                 rates = pool.map(wrapper, iters)
             av_rates = np.sum(np.array(rates), axis = 0) / 16
             key_per_time_list += [av_rates[0]]
             key_per_resource_list += [av_rates[1]]
+            if (10 * np.log10(av_rates[1] / 2)) < (-60):
+                print("keyrate to low")
+                break
          path = os.path.join(result_path, "available", name)
          assert_dir(path)
          np.savetxt(os.path.join(path, "length_list.txt"), length_list)
@@ -84,12 +88,15 @@ if __name__ == "__main__":
          for l in length_list:
             print(l)
             def wrapper(itera):
-                return parallel_run(itera, params, l, m*trial_time_manual)
+                return parallel_run(itera, params, l, None)
             with mp.Pool(mp.cpu_count()) as pool:
                 rates = pool.map(wrapper, iters)
             av_rates = np.sum(np.array(rates), axis = 0) / 16
             key_per_time_list += [av_rates[0]]
             key_per_resource_list += [av_rates[1]]
+            if (10 * np.log10(av_rates[1] / 2)) < (-60):
+                print("keyrate to low")
+                break
          path = os.path.join(result_path, "future", name)
          assert_dir(path)
          np.savetxt(os.path.join(path, "length_list.txt"), length_list)
