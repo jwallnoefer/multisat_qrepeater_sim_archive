@@ -1,4 +1,5 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
+import multiprocessing as mp
 import numpy as np
 import matplotlib.pyplot as plt
 from run.run_whitepaper_nrp import available_params, future_params
@@ -10,14 +11,25 @@ name_list = ["NV", "SiV", "Ca", "Rb"]
 color_list = ["blue", "green", "orange", "red"]
 available_params = available_params[0:2] + available_params[3:]
 future_params = future_params[0:2] + future_params[3:]
-ms_available = [p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in available_params]  # # 25/20/0/100/10 for NV/Ca/Qdot/Rb/SiV (current values on the left) and
-ms_future = [p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in future_params]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV (future values on the right).
+ms_available = [-p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in available_params]  # # 25/20/0/100/10 for NV/Ca/Qdot/Rb/SiV (current values on the left) and
+ms_future = [-p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in future_params]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV (future values on the right).
+
+def ranger_E_num(off, p, T_0, t_coh):
+    q = 1 - p  
+    j_arr = np.arange(off, m + 1, 16)
+    E_num = np.sum(2 * p * q**j_arr / (2 - p) * np.exp(-j_arr * T_0 / t_coh))
+    return E_num
+def ranger_E_den(off, p, *args):
+    q = 1 - p  
+    j_arr = np.arange(off, m + 1, 16)
+    E_num = np.sum(2 * p * q**j_arr / (2 - p))
+    return E_num
 
 def skr_whitepaper(L, m, params):
     c = 2 * 10**8
     p = params["P_LINK"] * np.exp(-L/2/(L_ATT * 1000))
     q = 1-p
-    if m == None:
+    if m == None or q**m == 0:
         R = p * (2 - p) / (3 - 2 * p)
     else:
         R = p * (2 - p - 2 * q**(m+1)) / (3 - 2 * p - 2 * q**(m+1))
@@ -28,9 +40,18 @@ def skr_whitepaper(L, m, params):
     if m == None:
         m = 10**6
     p_of_0 = p / (2-p)
-    j_arr = np.arange(1, m+1, 1)
-    E_num = np.sum(PofMisj_nn(j_arr) * np.exp(-j_arr * T_0 / t_coh)) + p_of_0
-    E_den = np.sum(PofMisj_nn(j_arr)) + p_of_0
+    
+    if m > 10**6:
+        offs = [(i, p, T_0, t_coh) for i in range(1,17)]
+        with mp.Pool(mp.cpu_count()) as pool:
+            E_nums = pool.starmap(ranger_E_num, offs) 
+            E_dens = pool.starmap(ranger_E_den, offs)
+        E_num = np.sum(E_nums) + p_of_0
+        E_den = np.sum(E_dens) + p_of_0
+    else:    
+        j_arr = np.arange(1, m + 1)
+        E_num = np.sum(PofMisj_nn(j_arr) * np.exp(-j_arr * T_0 / t_coh)) + p_of_0
+        E_den = np.sum(PofMisj_nn(j_arr)) + p_of_0
     E = E_num / E_den
     # E = np.sum([PofMisj(j) * np.exp(-(j) * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
     # print(np.sum([PofMisj(j) * np.exp(-(j + 2) * T_0 / t_coh) for j in range(m+1)]))
