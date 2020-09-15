@@ -17,17 +17,10 @@ params_available_SiV = {"P_LINK": 5 * 10**-2,
 params_available_Qdot = {"P_LINK": 10 * 10**-2,
                          "f_clock": 1000 * 10**6,
                          "T_DP": 0.003 * 10**-3}
-<<<<<<< HEAD
-params_available_Ca = {"P_LINK": 0.4 * 10**-2,
-                       "f_clock": 0.06 * 10**6,
-                       "T_DP": 0.8 * 10**-3}
-params_available_Rb = {"P_LINK": 70 * 10**-2,
-=======
 params_available_Ca = {"P_LINK": 25 * 10**-2,
                        "f_clock": 0.47 * 10**6,
                        "T_DP": 20 * 10**-3}
 params_available_Rb = {"P_LINK": 50 * 10**-2,
->>>>>>> whitepaper
                        "f_clock": 5 * 10**6,
                        "T_DP": 100 * 10**-3}
 params_future_NV = {"P_LINK": 50 * 10**-2,
@@ -39,15 +32,9 @@ params_future_SiV = {"P_LINK": 50 * 10**-2,
 params_future_Qdot = {"P_LINK": 60 * 10**-2,
                       "f_clock": 1000 * 10**6,
                       "T_DP": 0.3 * 10**-3}
-<<<<<<< HEAD
-params_future_Ca = {"P_LINK": 10 * 10**-2,
-                    "f_clock": 1 * 10**6,
-                    "T_DP": 1 * 10**-3}
-=======
 params_future_Ca = {"P_LINK": 50 * 10**-2,
                     "f_clock": 10 * 10**6,
                     "T_DP": 300 * 10**-3}
->>>>>>> whitepaper
 params_future_Rb = {"P_LINK": 70 * 10**-2,
                     "f_clock": 10 * 10**6,
                     "T_DP": 1000 * 10**-3}
@@ -61,15 +48,10 @@ ms_future = [5000, 50, 0, 200, 500]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV 
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    # length_list = np.arange(25000, 425000, 25000)
-    # for name, params in zip(name_list, available_params):
-=======
     length_list = np.arange(25000, 425000, 25000)
     # for name, params, m in zip(name_list, available_params, ms_available):
     #     if name == "Qdot":
     #         continue
->>>>>>> whitepaper
     #     print(name)
     #     key_per_time_list = []
     #     key_per_resource_list = []
@@ -88,24 +70,6 @@ if __name__ == "__main__":
     #     np.savetxt(os.path.join(path, "length_list.txt"), length_list[:len(key_per_resource_list)])
     #     np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
     #     np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
-<<<<<<< HEAD
-    # for name, params in zip(name_list, future_params):
-    #     print(name)
-    #     key_per_time_list = []
-    #     key_per_resource_list = []
-    #     for l in length_list:
-    #         print(l)
-    #         p = run(length=l, max_iter=10000, params=params, mode="sim")
-    #         key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time + 2 * l / C)
-    #         key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
-    #         key_per_time_list += [key_per_time]
-    #         key_per_resource_list += [key_per_resource]
-    #     path = os.path.join(result_path, "future", name)
-    #     assert_dir(path)
-    #     np.savetxt(os.path.join(path, "length_list.txt"), length_list)
-    #     np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
-    #     np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
-=======
     for name, params, m in zip(name_list, future_params, ms_future):
         if name == "Qdot":
             continue
@@ -127,8 +91,6 @@ if __name__ == "__main__":
         np.savetxt(os.path.join(path, "length_list.txt"), length_list[:len(key_per_resource_list)])
         np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
         np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
->>>>>>> whitepaper
-
     # ### here we plot the Rb lines for different cut-off times
     # name = "Rb"
     # params = params_available_Rb
@@ -151,33 +113,6 @@ if __name__ == "__main__":
     #     np.savetxt(os.path.join(path, "key_per_time_list_%d.txt" % m), key_per_time_list)
     #     np.savetxt(os.path.join(path, "key_per_resource_list_%d.txt" % m), key_per_resource_list)
 
-<<<<<<< HEAD
-    # ### further investigate cutoff times - especially the claim that you can set it too low
-    # ### effect should be very visible if memory quality is very high
-    test_params = {"P_LINK": 10 * 10**-2,
-                   "T_DP": 1}
-    length = 22 * 10**3
-    trial_time_manual = length / C
-    m_list = [m for m in range(1, 41, 2)]
-    cutoff_list = [m * trial_time_manual + 10**-6 * trial_time_manual for m in m_list]
-    key_per_time_list = []
-    key_per_resource_list = []
-    for m, cutoff_time in zip(m_list, cutoff_list):
-        print(m)
-        p = run(length=length, max_iter=10000, params=test_params, cutoff_time=cutoff_time, mode="sim")
-        key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time + 2 * length / C)
-        key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
-        key_per_time_list += [key_per_time]
-        key_per_resource_list += [key_per_resource]
-    path = os.path.join(result_path, "cutoff_test")
-    assert_dir(path)
-    np.savetxt(os.path.join(path, "m_list.txt"), m_list)
-    np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
-    np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
-    plt.plot(m_list, key_per_resource_list)
-    plt.grid()
-    plt.show()
-=======
     # # ### further investigate cutoff times - especially the claim that you can set it too low
     # # ### effect should be very visible if memory quality is very high
     # test_params = {"P_LINK": 10 * 10**-2,
@@ -203,4 +138,3 @@ if __name__ == "__main__":
     # plt.plot(m_list, key_per_resource_list)
     # plt.grid()
     # plt.show()
->>>>>>> whitepaper

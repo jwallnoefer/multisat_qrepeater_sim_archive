@@ -1,6 +1,5 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
-import multiprocessing as mp
-from scenarios.NRP_QR_cell import run
+from scenarios.NSP_QR_cell import run
 from libs.aux_functions import assert_dir, binary_entropy, calculate_keyrate_time, calculate_keyrate_channel_use
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,24 +42,30 @@ params_future_Rb = {"P_LINK": 70 * 10**-2,
 available_params = [params_available_NV, params_available_SiV, params_available_Qdot, params_available_Ca, params_available_Rb]
 future_params = [params_future_NV, params_future_SiV, params_future_Qdot, params_future_Ca, params_future_Rb]
 name_list = ["NV", "SiV", "Qdot", "Ca", "Rb"]
+ms_available = [25, 10, 0, 20, 100]  # # 25/20/0/100/10 for NV/Ca/Qdot/Rb/SiV (current values on the left) and
+ms_future = [5000, 50, 0, 200, 500]  # #5000/200/0/500/50 for NV/Ca/Qdot/Rb/SiV (future values on the right).
+
 
 def parallel_run(itera, params, length, cutoff_time):
     p = run(length=length, max_iter=itera, params=params, cutoff_time=cutoff_time, mode="sim")
-    key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time + 2 * length / C)
+    key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time)
     key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
     return np.array([key_per_time, key_per_resource])
 
 if __name__ == "__main__":
      length_list = np.arange(25000, 425000, 25000)
      iters = [1000]*16
-     for name, params in zip(name_list, available_params):
+     for name, params, m in zip(name_list, available_params, ms_available):
+         if name == "Qdot":
+            continue
          print(name)
+         trial_time_manual = 1 / params["f_clock"]
          key_per_time_list = []
          key_per_resource_list = []
          for l in length_list:
             print(l)
             def wrapper(itera):
-                return parallel_run(itera, params, l, None)
+                return parallel_run(itera, params, l, m*trial_time_manual)
             with mp.Pool(mp.cpu_count()) as pool:
                 rates = pool.map(wrapper, iters)
             av_rates = np.sum(np.array(rates), axis = 0) / 16
@@ -71,14 +76,15 @@ if __name__ == "__main__":
          np.savetxt(os.path.join(path, "length_list.txt"), length_list)
          np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
          np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
-     for name, params in zip(name_list, future_params):
+     for name, params, m in zip(name_list, future_params, ms_future):
          print(name)
+         trial_time_manual = 1 / params["f_clock"]
          key_per_time_list = []
          key_per_resource_list = []
          for l in length_list:
             print(l)
             def wrapper(itera):
-                return parallel_run(itera, params, l, None)
+                return parallel_run(itera, params, l, m*trial_time_manual)
             with mp.Pool(mp.cpu_count()) as pool:
                 rates = pool.map(wrapper, iters)
             av_rates = np.sum(np.array(rates), axis = 0) / 16
@@ -91,15 +97,16 @@ if __name__ == "__main__":
          np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
 
    # ### here we plot the Rb lines for different cut-off times
-     name = "Rb"
+     """name = "Rb"
      params = params_available_Rb
      length_list = np.arange(25000, 425000, 25000)
-     for m in [200, 500, 1000, 2000, 5000, 10000, 20000]:
+     for m in [100, 200, 500, 1000, 2000, 5000, 10000, 20000]:
          print("m=%d" % m)
+         trial_time_manual = 1 / params["f_clock"]
          key_per_time_list = []
          key_per_resource_list = []
          for l in length_list:
-             print(l)
+            print(l)
             def wrapper(itera):
                 return parallel_run(itera, params, l, m*trial_time_manual)
             with mp.Pool(mp.cpu_count()) as pool:
@@ -111,7 +118,7 @@ if __name__ == "__main__":
          assert_dir(path)
          np.savetxt(os.path.join(path, "length_list_%d.txt" % m), length_list)
          np.savetxt(os.path.join(path, "key_per_time_list_%d.txt" % m), key_per_time_list)
-         np.savetxt(os.path.join(path, "key_per_resource_list_%d.txt" % m), key_per_resource_list)
+         np.savetxt(os.path.join(path, "key_per_resource_list_%d.txt" % m), key_per_resource_list)"""
 
    # ### further investigate cutoff times - especially the claim that you can set it too low
      ### effect should be very visible if memory quality is very high

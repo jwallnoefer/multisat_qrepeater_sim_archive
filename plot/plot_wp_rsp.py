@@ -1,12 +1,35 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 import numpy as np
 import matplotlib.pyplot as plt
-from run.run_whitepaper_nsp import available_params, future_params, ms_available, ms_future
+from run.run_whitepaper_nrp import available_params, future_params, ms_available, ms_future
 from libs.aux_functions import binary_entropy
 
-result_path = os.path.join("results", "whitepaper")
+L_ATT = 22
+result_path = os.path.join("results", "whitepaper_nrp")
+name_list = ["NV", "SiV", "Ca", "Rb"]
+color_list = ["blue", "green", "orange", "red"]
+available_params = available_params[0:2] + available_params[3:]
+future_params = future_params[0:2] + future_params[3:]
+ms_available = ms_available[0:2] + ms_available[3:]
+ms_future = ms_future[0:2] + ms_future[3:]
 
-L_ATT = 22 * 10**3 / 1000 # attenuation length
+def skr_whitepaper(L, m, params):
+    c = 2 * 10**8
+    p = params["P_LINK"] * np.exp(-L/2/(L_ATT * 1000))
+    q = 1-p
+    R = p * (2 - p - 2 * q**(m+1)) / (3 - 2 * p - 2 * q**(m+1))
+    t_coh = params["T_DP"]
+    T_0 = 1 / params["f_clock"]
+    def PofMisj(j):
+        if j == 0:
+            return p / (2 - p)
+        else:
+            return 2 * p * q**j / (2 - p)
+    E = np.sum([PofMisj(j) * np.exp(-j * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
+    # E = np.sum([PofMisj(j) * np.exp(-(j) * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
+    # print(np.sum([PofMisj(j) * np.exp(-(j + 2) * T_0 / t_coh) for j in range(m+1)]))
+    # print(np.sum([PofMisj(j) for j in range(m+1)]))
+    return R * (1 - binary_entropy(1/2 * (1 - E)))
 
 x_base = np.arange(1000, 401000, 1000) / 1000
 eta = np.exp(-x_base/L_ATT)
@@ -15,33 +38,6 @@ y_optimal = 10 * np.log10(np.sqrt(eta))
 y_realistic_repeaterless1 = 10 * np.log10(0.7 * eta / 2)
 y_realistic_repeaterless2 = 10 * np.log10(0.1 * eta / 2)
 
-def skr_whitepaper(L, m, params):
-    c = 2 * 10**8
-    p = params["P_LINK"] * np.exp(-L/2/(L_ATT * 1000))
-    q = 1-p
-    R = p * (2 - p - 2 * q**(m+1)) / (3 - 2 * p - 2 * q**(m+1))
-    t_coh = params["T_DP"]
-    T_0 = L / c
-    def PofMisj(j):
-        if j == 0:
-            return p / (2 - p)
-        else:
-            return 2 * p * q**j / (2 - p)
-    E = np.sum([PofMisj(j) * np.exp(-(j + 2) * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
-    # E = np.sum([PofMisj(j) * np.exp(-(j) * T_0 / t_coh) for j in range(m+1)]) / np.sum([PofMisj(j) for j in range(m+1)])
-    # print(np.sum([PofMisj(j) * np.exp(-(j + 2) * T_0 / t_coh) for j in range(m+1)]))
-    # print(np.sum([PofMisj(j) for j in range(m+1)]))
-    return R * (1 - binary_entropy(1/2 * (1 - E)))
-
-# name_list = ["NV", "SiV", "Qdot", "Ca", "Rb"]
-name_list = ["NV", "SiV", "Ca", "Rb"]
-color_list = ["blue", "green", "orange", "red"]
-available_params = available_params[0:2] + available_params[3:]
-future_params = future_params[0:2] + future_params[3:]
-ms_available = ms_available[0:2] + ms_available[3:]
-ms_future = ms_future[0:2] + ms_future[3:]
-
-# first plot available values
 plt.plot(x_base, y_repeaterless, color="black")
 plt.plot(x_base, y_optimal, color="gray")
 plt.fill_between(x_base, y_repeaterless, y_optimal, facecolor="lightgray")
