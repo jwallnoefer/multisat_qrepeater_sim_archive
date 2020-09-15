@@ -110,7 +110,7 @@ for name, color, params, m in zip(name_list, color_list, available_params, ms_av
     if name == "Ca":
         name = "Ca/Yb"
     plt.scatter(x, y, label=name, color=color)
-    y_whitepaper = 10 * np.log10([skr_whitepaper(l, None, params) / 2 for l in (x_base * 1000)])
+    y_whitepaper = 10 * np.log10([skr_whitepaper(l, m, params) / 2 for l in (x_base * 1000)])
     plt.plot(x_base, y_whitepaper, color=color)
 plt.xlim((0,400))
 plt.ylim((-60, 0))
@@ -137,7 +137,7 @@ for name, color, params,m  in zip(name_list, color_list, future_params, ms_futur
     if name == "Ca":
         name = "Ca/Yb"
     plt.scatter(x, y, label=name, color=color)
-    y_whitepaper = 10 * np.log10([skr_whitepaper(l, None, params) / 2 for l in (x_base * 1000)])
+    y_whitepaper = 10 * np.log10([skr_whitepaper(l, m, params) / 2 for l in (x_base * 1000)])
     plt.plot(x_base, y_whitepaper, color=color)
 plt.xlim((0,400))
 plt.ylim((-60, 0))
