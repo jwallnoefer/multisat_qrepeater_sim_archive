@@ -93,5 +93,20 @@ class TestResourceTracking(unittest.TestCase):
         self.assertEqual(pair.resource_cost_add, resource1_add + resource2_add + resource3_add)
         self.assertEqual(pair.resource_cost_max, resource1_max + resource2_max + resource3_max)
 
+    def test_tracked_pair_destruction(self):
+        station1 = Station(world=self.world, id=1, position=0)
+        station2 = Station(world=self.world, id=2, position=10)
+        resource1_add = np.random.random()*40
+        resource1_max = np.random.random()*40
+        resource2_add = np.random.random()*40
+        resource2_max = np.random.random()*40
+        pair1 = Pair(world=self.world, qubits=[station1.create_qubit(), station2.create_qubit()], initial_state=_rho_phiplus, initial_cost_add=resource1_add, initial_cost_max=resource1_max)
+        pair1.destroy_and_track_resources()
+        pair1.qubits[0].destroy()
+        pair1.qubits[1].destroy()
+        pair2 = Pair(world=self.world, qubits=[station1.create_qubit(), station2.create_qubit()], initial_state=_rho_phiplus, initial_cost_add=resource2_add, initial_cost_max=resource2_max)
+        self.assertEqual(pair2.resource_cost_add, resource1_add + resource2_add)
+        self.assertEqual(pair2.resource_cost_max, resource1_max + resource2_max)
+
 if __name__ == '__main__':
     unittest.main()
