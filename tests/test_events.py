@@ -27,7 +27,10 @@ def _known_dejmps_identical_copies(lambdas):
     new_lambdas = np.array(new_lambdas) / p_suc
     return p_suc, new_lambdas
 
-
+def _bogus_epp(rho):
+    p_suc = 1
+    state_after = np.dot(mat.phiplus, mat.H(mat.phiplus))
+    return p_suc, state_after
 
 
 class TestEvents(unittest.TestCase):
@@ -102,6 +105,19 @@ class TestEPP(unittest.TestCase):
             pair = self.world.world_objects["Pair"][0]
             self.assertTrue(np.allclose(pair.state, trusted_state))
             # not sure how you would test success probability without making a huge number of cases
+
+    # # test if the use of a bogus protocol works as expected
+    def test_custom_epp_event(self):
+        pair1 = Pair(world=self.world, qubits=[self.station1.create_qubit(), self.station2.create_qubit()], initial_state=np.dot(mat.phiminus, mat.H(mat.phiminus)))
+        pair2 = Pair(world=self.world, qubits=[self.station1.create_qubit(), self.station2.create_qubit()], initial_state=np.dot(mat.psiplus, mat.H(mat.psiplus)))
+        event = event = EntanglementPurificationEvent(time=self.world.event_queue.current_time, pairs=[pair1, pair2], protocol=_bogus_epp)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        self.assertEqual(len(self.world.world_objects["Pair"]), 1)
+        pair = self.world.world_objects["Pair"][0]
+        self.assertTrue(np.allclose(pair.state, np.dot(mat.phiplus, mat.H(mat.phiplus))))
+
+
 
 
 class TestEventQueue(unittest.TestCase):
