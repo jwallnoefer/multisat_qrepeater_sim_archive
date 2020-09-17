@@ -37,10 +37,11 @@ def skr_whitepaper(L, m, params):
     T_0 = 1 / params["f_clock"]
     def PofMisj_nn(j):
         return 2 * p * q**j / (2 - p)
-    if m == None:
-        m = 10**6
-    p_of_0 = p / (2-p)
-    
+
+    p_of_0 = p / (2 - p)
+    if m == None or q**m == 0:
+        E = p_of_0 + 2 * p / (2-p) * (1 / (1 - q * np.exp(T_0 / t_coh)) - 1)
+        return R * (1 - binary_entropy(1/2 * (1 - E)))
     if m > 10**6:
         offs = [(i, p, T_0, t_coh) for i in range(1,17)]
         with mp.Pool(mp.cpu_count()) as pool:

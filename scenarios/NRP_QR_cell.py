@@ -76,9 +76,9 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
         mem_pair = np.dot(mat.phiplus, mat.H(mat.phiplus))
         filled_to_four = mat.tensor(mat.z0 @ mat.H(mat.z0), rho, mem_pair)
         mixed_with_err = imperfect_bsm_err_func(filled_to_four)
-        proj = mat.tensor(mat.z0,mat.phiplus,mat.I(2))
+        proj = mat.tensor(mat.z0, mat.phiplus, mat.I(2))
         remain = mat.H(proj) @ mixed_with_err @ proj
-        return remain
+        return remain * np.trace(rho) / np.trace(remain)
 
     def alpha_of_eta(eta):
         return eta * (1 - P_D) / (1 - (1 - eta) * (1 - P_D)**2)
@@ -89,7 +89,7 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
         eta_effective = 1 - (1 - eta) * (1 - P_D)**2
         trial_time = T_P # in NRP one can think of the inverted clock rate as the preparation time  # I don't think that paper uses latency time and loading time?
         random_num = np.random.geometric(eta_effective)
-        return random_num * trial_time, random_num
+        return random_num * trial_time + comm_distance / C, random_num
 
     def state_generation(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
@@ -104,7 +104,7 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
                 state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta(eta))
                 state = apply_single_qubit_map(map_func=bsm_write_in, qubit_index =idx, rho=state)
                 
-        return state / np.trace(state)
+        return state
 
     class TwoLinkProtocol(Protocol):
         """Short summary.

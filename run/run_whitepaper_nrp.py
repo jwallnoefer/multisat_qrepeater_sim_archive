@@ -1,4 +1,5 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
+from functools import reduce
 import multiprocessing as mp
 from scenarios.NRP_QR_cell import run
 from libs.aux_functions import assert_dir, binary_entropy, calculate_keyrate_time, calculate_keyrate_channel_use
@@ -49,13 +50,10 @@ ms_future = [-p["T_DP"]*p["f_clock"]*np.log(2*0.95-1) for p in future_params]  #
 
 def parallel_run(itera, params, length, cutoff_time):
     p = run(length=length, max_iter=itera, params=params, cutoff_time=cutoff_time, mode="sim")
-    key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, 1, p.world.event_queue.current_time)
-    key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
-    return np.array([key_per_time, key_per_resource])
+    return np.array([p.correlations_z_list, p.correlations_x_list, p.resource_cost_max_list]), p.time_list[-1]
 
 if __name__ == "__main__":
      length_list = np.arange(25000, 425000, 25000)
-     iters = [1000]*16
      for name, params, m in zip(name_list, available_params, ms_available):
          if name == "Qdot":
             continue
@@ -65,14 +63,15 @@ if __name__ == "__main__":
          key_per_resource_list = []
          for l in length_list:
             print(l)
-            def wrapper(itera):
-                return parallel_run(itera, params, l, m*trial_time_manual)
+            iters_args = [(1000, params, l, m*trial_time_manual)]*16
             with mp.Pool(mp.cpu_count()) as pool:
-                rates = pool.map(wrapper, iters)
-            av_rates = np.sum(np.array(rates), axis = 0) / 16
-            key_per_time_list += [av_rates[0]]
-            key_per_resource_list += [av_rates[1]]
-            if (10 * np.log10(av_rates[1] / 2)) < (-60):
+                raw_data = pool.starmap(parallel_run, iters_args)
+            stacked_data, total_time = reduce(lambda x, y: (np.hstack((x[0],y[0])), x[1] + y[1]) , raw_data)
+            key_per_time = calculate_keyrate_time(stacked_data[0], stacked_data[1], 1, total_time)
+            key_per_resource = calculate_keyrate_channel_use(stacked_data[0], stacked_data[1], 1, stacked_data[2])
+            key_per_time_list += [key_per_time]
+            key_per_resource_list += [key_per_resource]
+            if (10 * np.log10(key_per_resource / 2)) < (-60):
                 print("keyrate to low")
                 break
          path = os.path.join(result_path, "available", name)
@@ -87,14 +86,15 @@ if __name__ == "__main__":
          key_per_resource_list = []
          for l in length_list:
             print(l)
-            def wrapper(itera):
-                return parallel_run(itera, params, l, None)
+            iters_args = [(1000, params, l, m*trial_time_manual)]*16
             with mp.Pool(mp.cpu_count()) as pool:
-                rates = pool.map(wrapper, iters)
-            av_rates = np.sum(np.array(rates), axis = 0) / 16
-            key_per_time_list += [av_rates[0]]
-            key_per_resource_list += [av_rates[1]]
-            if (10 * np.log10(av_rates[1] / 2)) < (-60):
+                raw_data = pool.starmap(parallel_run, iters_args)
+            stacked_data, total_time = reduce(lambda x, y: (np.hstack((x[0],y[0])), x[1] + y[1]) , raw_data)
+            key_per_time = calculate_keyrate_time(stacked_data[0], stacked_data[1], 1, total_time)
+            key_per_resource = calculate_keyrate_channel_use(stacked_data[0], stacked_data[1], 1, stacked_data[2])
+            key_per_time_list += [key_per_time]
+            key_per_resource_list += [key_per_resource]
+            if (10 * np.log10(key_per_resource / 2)) < (-60):
                 print("keyrate to low")
                 break
          path = os.path.join(result_path, "future", name)
