@@ -63,7 +63,7 @@ if __name__ == "__main__":
          key_per_resource_list = []
          for l in length_list:
             print(l)
-            iters_args = [(1000, params, l, m*trial_time_manual)]*16
+            iters_args = [(700, params, l, m*trial_time_manual)]*16
             with mp.Pool(mp.cpu_count()) as pool:
                 raw_data = pool.starmap(parallel_run, iters_args)
             stacked_data, total_time = reduce(lambda x, y: (np.hstack((x[0],y[0])), x[1] + y[1]) , raw_data)
@@ -80,13 +80,15 @@ if __name__ == "__main__":
          np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
          np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
      for name, params, m in zip(name_list, future_params, ms_future):
+         if name == "Qdot":
+            continue
          print(name)
          trial_time_manual = 1 / params["f_clock"]
          key_per_time_list = []
          key_per_resource_list = []
          for l in length_list:
             print(l)
-            iters_args = [(1000, params, l, m*trial_time_manual)]*16
+            iters_args = [(700, params, l, m*trial_time_manual)]*16
             with mp.Pool(mp.cpu_count()) as pool:
                 raw_data = pool.starmap(parallel_run, iters_args)
             stacked_data, total_time = reduce(lambda x, y: (np.hstack((x[0],y[0])), x[1] + y[1]) , raw_data)

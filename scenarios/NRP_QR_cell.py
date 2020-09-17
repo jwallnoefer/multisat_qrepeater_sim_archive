@@ -72,12 +72,14 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     def imperfect_bsm_err_func(four_qubit_state):
         return LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
-    def bsm_write_in(rho):
+    def bsm_write_in(rho): # unfortunatly there is an error. Maybe there is still a problem in the tensor magic?
         mem_pair = np.dot(mat.phiplus, mat.H(mat.phiplus))
         filled_to_four = mat.tensor(mat.z0 @ mat.H(mat.z0), rho, mem_pair)
         mixed_with_err = imperfect_bsm_err_func(filled_to_four)
         proj = mat.tensor(mat.z0, mat.phiplus, mat.I(2))
         remain = mat.H(proj) @ mixed_with_err @ proj
+        if np.trace(remain) == np.trace(rho):
+            return remain
         return remain * np.trace(rho) / np.trace(remain)
 
     def alpha_of_eta(eta):
@@ -89,7 +91,7 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
         eta_effective = 1 - (1 - eta) * (1 - P_D)**2
         trial_time = T_P # in NRP one can think of the inverted clock rate as the preparation time  # I don't think that paper uses latency time and loading time?
         random_num = np.random.geometric(eta_effective)
-        return random_num * trial_time + comm_distance / C, random_num
+        return random_num * trial_time, random_num #+ comm_distance / C
 
     def state_generation(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
@@ -102,8 +104,16 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
                 eta = P_LINK * np.exp(-comm_distance / L_ATT)
                 # dark counts are modeled as white noise
                 state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta(eta))
-                state = apply_single_qubit_map(map_func=bsm_write_in, qubit_index =idx, rho=state)
-                
+                mem_pair = np.dot(mat.phiplus, mat.H(mat.phiplus))
+                if idx == 0:
+                    four_qubit_state = mat.tensor(mem_pair, state)
+                else:
+                    four_qubit_state = mat.tensor(state, mem_pair)
+                mixed_with_err = imperfect_bsm_err_func(four_qubit_state)
+                proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
+                remain = mat.H(proj) @ mixed_with_err @ proj
+                state = remain / np.trace(remain)
+                #state = apply_single_qubit_map(map_func=bsm_write_in, qubit_index =idx, rho=state)
         return state
 
     class TwoLinkProtocol(Protocol):

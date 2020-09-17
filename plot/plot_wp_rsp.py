@@ -40,7 +40,7 @@ def skr_whitepaper(L, m, params):
 
     p_of_0 = p / (2 - p)
     if m == None or q**m == 0:
-        E = p_of_0 + 2 * p / (2-p) * (1 / (1 - q * np.exp(T_0 / t_coh)) - 1)
+        E = p_of_0 + 2 * p / (2-p) * (1 / (1 - q * np.exp(-T_0 / t_coh)) - 1)
         return R * (1 - binary_entropy(1/2 * (1 - E)))
     if m > 10**6:
         offs = [(i, p, T_0, t_coh) for i in range(1,17)]
