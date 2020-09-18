@@ -313,7 +313,7 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     source_B = SchedulingSource(world, position=length, target_stations=[station_central, station_B], time_distribution=time_distribution, state_generation=state_generation)
     protocol = TwoLinkProtocol(world, mode=mode)
     protocol.setup()
-
+    world.event_queue.current_time = length / (2 * C) # travel time for first qubits
     while len(protocol.time_list) < max_iter:
         protocol.check()
         world.event_queue.resolve_next_event()
