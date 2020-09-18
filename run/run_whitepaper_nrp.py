@@ -67,7 +67,7 @@ if __name__ == "__main__":
             with mp.Pool(mp.cpu_count()) as pool:
                 raw_data = pool.starmap(parallel_run, iters_args)
             stacked_data, total_time = reduce(lambda x, y: (np.hstack((x[0],y[0])), x[1] + y[1]) , raw_data)
-            key_per_time = calculate_keyrate_time(stacked_data[0], stacked_data[1], 1, total_time)
+            key_per_time = calculate_keyrate_time(stacked_data[0], stacked_data[1], 1, total_time - 15 * (l/2)/C)
             key_per_resource = calculate_keyrate_channel_use(stacked_data[0], stacked_data[1], 1, stacked_data[2])
             key_per_time_list += [key_per_time]
             key_per_resource_list += [key_per_resource]
