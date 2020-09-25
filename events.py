@@ -39,13 +39,27 @@ class Event(ABC):
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, *args, **kwargs)" % str(self.time)
 
+    @property
+    def type(self):
+        """Returns the event type.
+
+        Returns
+        -------
+        str
+            The event type.
+
+        """
+        return self.__class__.__name__
+
     @abstractmethod
     def resolve(self):
         """Resolve the event.
 
         Returns
         -------
-        None
+        None or dict
+            dict may optionally be used to pass information to the protocol.
+            The protocol will not necessarily use this information.
 
         """
         pass
@@ -290,12 +304,13 @@ class EntanglementPurificationEvent(Event):
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
                 pair.destroy()
+            return {"event_type": self.type, "output_pair": output_pair, "is_successful": True}
         else:
             for pair in self.pairs:  # destroy all the involved pairs but track resources
                 pair.destroy_and_track_resources()
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
-
+            return {"event_type": self.type, "output_pair": None, "is_successful": False}
 
 class EventQueue(object):
     """Provides methods to queue and resolve Events in order.

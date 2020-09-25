@@ -42,3 +42,20 @@ class Protocol(ABC):
         make decisions about next steps.
         """
         pass
+
+
+class MessageReadingProtocol(Protocol):
+    """Abstract Protocol that can use additional information."""
+
+    @abstractmethod
+    def check(self, message=None):
+        """Short summary.
+
+        Parameters
+        ----------
+        message : None or dict
+            Optional additional information for the Protocol to consider.
+            Default is None.
+
+        """
+        pass
