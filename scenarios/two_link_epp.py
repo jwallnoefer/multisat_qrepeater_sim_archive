@@ -2,7 +2,7 @@ import os, sys; sys.path.insert(0, os.path.abspath("."))
 from quantum_objects import Source, SchedulingSource, Station, Pair
 from protocol import Protocol, MessageReadingProtocol
 from world import World
-from events import SourceEvent, GenericEvent, EntanglementSwappingEvent
+from events import SourceEvent, GenericEvent, EntanglementSwappingEvent, EntanglementPurificationEvent
 import libs.matrix as mat
 import numpy as np
 from libs.aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel, assert_dir
@@ -179,6 +179,26 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
             except StopIteration:
                 return False
 
+        def _left_epp_is_scheduled(self):
+            try:
+                next(filter(lambda event: isinstance(event, EntanglementPurificationEvent) and
+                                          (self.station_A in [qubit.station for qubit in event.pairs[0].qubits]) and
+                                          (self.station_central in [qubit.station for qubit in event.pairs[0].qubits]),
+                            self.world.event_queue.queue))
+                return True
+            except StopIteration:
+                return False
+
+        def _right_epp_is_scheduled(self):
+            try:
+                next(filter(lambda event: isinstance(event, EntanglementPurificationEvent) and
+                                          (self.station_central in [qubit.station for qubit in event.pairs[0].qubits]) and
+                                          (self.station_B in [qubit.station for qubit in event.pairs[0].qubits]),
+                            self.world.event_queue.queue))
+                return True
+            except StopIteration:
+                return False
+
 
         def _eval_pair(self, long_range_pair):
             comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
@@ -226,7 +246,7 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
                 if message["is_successful"]:
                     self.epp_tracking[message["output_pair"]] += 1
 
-            for pair in self.epp_tracking.keys():
+            for pair in list(self.epp_tracking):
                 if pair not in pairs:
                     self.epp_tracking.pop(pair)
 
@@ -237,33 +257,35 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
             # schedule pair creation if there is no pair and pair creation is not already scheduled
             if num_left_pairs == 0 and not self._left_pair_is_scheduled():
                 self.source_A.schedule_event()
-            if num_left_pairs == 1:
+            elif num_left_pairs == 1:
                 pair = left_pairs[0]
                 if self.epp_tracking[pair] == 0 and not self._left_pair_is_scheduled():
                     self.source_A.schedule_event()
                 else:
                     pass  # just wait for right pair
-            if num_left_pairs == 2:
+            elif num_left_pairs == 2 and not self._left_epp_is_scheduled():
                 # DO entanglement purification
-                pass
+                epp_event = EntanglementPurificationEvent(time=self.world.event_queue.current_time, pairs=left_pairs, protocol="dejmps")
+                self.world.event_queue.add_event(epp_event)
 
             if num_right_pairs == 0 and not self._right_pair_is_scheduled():
                 self.source_B.schedule_event()
-            if num_right_pairs == 1:
+            elif num_right_pairs == 1:
                 pair = right_pairs[0]
                 if self.epp_tracking[pair] == 0 and not self._right_pair_is_scheduled():
                     self.source_B.schedule_event()
                 else:
                     pass  # just wait for left pair
-            if num_right_pairs == 2:
+            elif num_right_pairs == 2 and not self._right_epp_is_scheduled():
                 # DO entanglement purification
-                pass
+                epp_event = EntanglementPurificationEvent(time=self.world.event_queue.current_time, pairs=right_pairs, protocol="dejmps")
+                self.world.event_queue.add_event(epp_event)
 
             ent_swap_condition = (num_left_pairs == 1 and self.epp_tracking[left_pairs[0]] == 1 and
                                   num_right_pairs == 1 and self.epp_tracking[right_pairs[0]] == 1
                                  )
             if ent_swap_condition:
-                ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair], error_func=imperfect_bsm_err_func)
+                ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pairs[0], right_pairs[0]], error_func=imperfect_bsm_err_func)
                 # print("an entswap event was scheduled at %.8f while event_queue looked like this:" % self.world.event_queue.current_time, self.world.event_queue.queue)
                 self.world.event_queue.add_event(ent_swap_event)
                 return
