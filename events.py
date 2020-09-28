@@ -305,7 +305,7 @@ class EntanglementPurificationEvent(Event):
                 pair.qubits[1].destroy()
                 pair.destroy()
             return {"event_type": self.type, "output_pair": output_pair, "is_successful": True}
-        else:
+        else:  # if unsuccessful
             for pair in self.pairs:  # destroy all the involved pairs but track resources
                 pair.destroy_and_track_resources()
                 pair.qubits[0].destroy()
@@ -381,7 +381,9 @@ class EventQueue(object):
 
         Returns
         -------
-        None
+        None or dict:
+            Whatever event.resolve() returns (usually None or dict). Is used to pass resolve message
+            through to the protocol.
 
         """
         event = self.queue[0]
@@ -395,8 +397,9 @@ class EventQueue(object):
             except StopIteration:
                 pass
         self.current_time = event.time
-        event.resolve()
+        return_message = event.resolve()
         self.queue = self.queue[1:]
+        return return_message
 
     def resolve_until(self, target_time):
         """Resolve events until `target_time` is reached.
