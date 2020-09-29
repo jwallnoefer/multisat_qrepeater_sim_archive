@@ -7,6 +7,7 @@ if sys.version_info >= (3, 4):
 else:
     ABC = abc.ABCMeta('ABC', (), {})
 
+
 class Protocol(ABC):
     """Abstract base class for protocols.
 
@@ -20,9 +21,9 @@ class Protocol(ABC):
     world
 
     """
+
     def __init__(self, world):
         self.world = world
-
 
     @abstractmethod
     def setup(self):

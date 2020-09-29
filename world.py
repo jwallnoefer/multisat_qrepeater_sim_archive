@@ -1,5 +1,4 @@
 from events import EventQueue
-from quantum_objects import Station, Source, Pair, Qubit
 
 
 class World(object):

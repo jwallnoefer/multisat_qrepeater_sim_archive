@@ -80,6 +80,7 @@ class GenericEvent(Event):
         kwargs for resolve_function.
 
     """
+
     def __init__(self, time, resolve_function, *args, **kwargs):
         self._resolve_function = resolve_function
         self._resolve_function_args = args
@@ -87,7 +88,7 @@ class GenericEvent(Event):
         super(GenericEvent, self).__init__(time)
 
     def __repr__(self):
-        return self.__class__.__name__ + "(time=" + str(time) + ", resolve_function="+str(resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
+        return self.__class__.__name__ + "(time=" + str(self.time) + ", resolve_function=" + str(self._resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
 
     def resolve(self):
         return self._resolve_function(*self._resolve_function_args, **self._resolve_function_kwargs)
@@ -159,6 +160,7 @@ class EntanglementSwappingEvent(Event):
     error_func
 
     """
+
     def __init__(self, time, pairs, error_func=None):
         self.pairs = pairs
         self.error_func = error_func  # currently a four-qubit channel, would be nicer as two-qubit channel that gets applied to the right qubits
@@ -220,6 +222,7 @@ class DiscardQubitEvent(Event):
     qubit
 
     """
+
     def __init__(self, time, qubit):
         self.qubit = qubit
         super(DiscardQubitEvent, self).__init__(time)
@@ -267,6 +270,7 @@ class EntanglementPurificationEvent(Event):
     protocol
 
     """
+
     def __init__(self, time, pairs, protocol="dejmps"):
         self.pairs = pairs
         if protocol == "dejmps":
@@ -311,6 +315,7 @@ class EntanglementPurificationEvent(Event):
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
             return {"event_type": self.type, "output_pair": None, "is_successful": False}
+
 
 class EventQueue(object):
     """Provides methods to queue and resolve Events in order.

@@ -1,27 +1,27 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
-from quantum_objects import Source, SchedulingSource, Station, Pair
-from protocol import Protocol, MessageReadingProtocol
+from quantum_objects import SchedulingSource, Station
+from protocol import MessageReadingProtocol
 from world import World
-from events import SourceEvent, GenericEvent, EntanglementSwappingEvent, EntanglementPurificationEvent
+from events import SourceEvent, EntanglementSwappingEvent, EntanglementPurificationEvent
 import libs.matrix as mat
 import numpy as np
-from libs.aux_functions import apply_single_qubit_map, x_noise_channel, y_noise_channel, z_noise_channel, w_noise_channel, assert_dir
-import matplotlib.pyplot as plt
+from libs.aux_functions import apply_single_qubit_map, y_noise_channel, z_noise_channel, w_noise_channel
 from warnings import warn
 from collections import defaultdict
 
-C = 2 * 10**8 # speed of light in optical fiber
+C = 2 * 10**8  # speed of light in optical fiber
 L_ATT = 22 * 10**3  # attenuation length
 
 
 def construct_dephasing_noise_channel(dephasing_time):
     def lambda_dp(t):
-        return (1 - np.exp(-t/dephasing_time)) / 2
+        return (1 - np.exp(-t / dephasing_time)) / 2
 
     def dephasing_noise_channel(rho, t):
         return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
 
     return dephasing_noise_channel
+
 
 def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     # unpack the parameters
@@ -51,7 +51,7 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
         LAMBDA_BSM = 1
 
     def imperfect_bsm_err_func(four_qubit_state):
-        return LAMBDA_BSM * four_qubit_state + (1-LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+        return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
     def alpha_of_eta(eta):
         return eta * (1 - P_D) / (1 - (1 - eta) * (1 - P_D)**2)
@@ -133,7 +133,6 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
             assert callable(getattr(self.source_A, "schedule_event", None))  # schedule_event is a required method for this protocol
             assert callable(getattr(self.source_B, "schedule_event", None))
 
-
         def _pair_is_between_stations(self, pair, station1, station2):
             return (pair.qubit1.station == station1 and pair.qubit2.station == station2) or (pair.qubit1.station == station2 and pair.qubit2.station == station1)
 
@@ -143,7 +142,6 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
             except KeyError:
                 pairs = []
             return list(filter(lambda x: self._pair_is_between_stations(x, self.station_A, self.station_central), pairs))
-
 
         def _get_right_pairs(self):
             try:
@@ -161,9 +159,10 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
 
         def _left_pair_is_scheduled(self):
             try:
-                next(filter(lambda event: isinstance(event, SourceEvent) and
-                                          (self.station_A in event.source.target_stations) and
-                                          (self.station_central in event.source.target_stations),
+                next(filter(lambda event: (isinstance(event, SourceEvent)
+                                           and (self.station_A in event.source.target_stations)
+                                           and (self.station_central in event.source.target_stations)
+                                           ),
                             self.world.event_queue.queue))
                 return True
             except StopIteration:
@@ -171,9 +170,10 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
 
         def _right_pair_is_scheduled(self):
             try:
-                next(filter(lambda event: isinstance(event, SourceEvent) and
-                                          (self.station_central in event.source.target_stations) and
-                                          (self.station_B in event.source.target_stations),
+                next(filter(lambda event: (isinstance(event, SourceEvent)
+                                           and (self.station_central in event.source.target_stations)
+                                           and (self.station_B in event.source.target_stations)
+                                           ),
                             self.world.event_queue.queue))
                 return True
             except StopIteration:
@@ -181,9 +181,10 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
 
         def _left_epp_is_scheduled(self):
             try:
-                next(filter(lambda event: isinstance(event, EntanglementPurificationEvent) and
-                                          (self.station_A in [qubit.station for qubit in event.pairs[0].qubits]) and
-                                          (self.station_central in [qubit.station for qubit in event.pairs[0].qubits]),
+                next(filter(lambda event: (isinstance(event, EntanglementPurificationEvent)
+                                           and (self.station_A in [qubit.station for qubit in event.pairs[0].qubits])
+                                           and (self.station_central in [qubit.station for qubit in event.pairs[0].qubits])
+                                           ),
                             self.world.event_queue.queue))
                 return True
             except StopIteration:
@@ -191,14 +192,14 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
 
         def _right_epp_is_scheduled(self):
             try:
-                next(filter(lambda event: isinstance(event, EntanglementPurificationEvent) and
-                                          (self.station_central in [qubit.station for qubit in event.pairs[0].qubits]) and
-                                          (self.station_B in [qubit.station for qubit in event.pairs[0].qubits]),
+                next(filter(lambda event: (isinstance(event, EntanglementPurificationEvent)
+                                           and (self.station_central in [qubit.station for qubit in event.pairs[0].qubits])
+                                           and (self.station_B in [qubit.station for qubit in event.pairs[0].qubits])
+                                           ),
                             self.world.event_queue.queue))
                 return True
             except StopIteration:
                 return False
-
 
         def _eval_pair(self, long_range_pair):
             comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
@@ -210,12 +211,12 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
 
             z0z0 = mat.tensor(mat.z0, mat.z0)
             z1z1 = mat.tensor(mat.z1, mat.z1)
-            correlations_z = np.dot(np.dot(mat.H(z0z0), long_range_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), long_range_pair.state), z1z1)[0, 0]
+            correlations_z = np.dot(np.dot(mat.H(z0z0), long_range_pair.state), z0z0)[0, 0] + np.dot(np.dot(mat.H(z1z1), long_range_pair.state), z1z1)[0, 0]
             self.correlations_z_list += [correlations_z]
 
             x0x0 = mat.tensor(mat.x0, mat.x0)
             x1x1 = mat.tensor(mat.x1, mat.x1)
-            correlations_x = np.dot(np.dot(mat.H(x0x0), long_range_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), long_range_pair.state), x1x1)[0, 0]
+            correlations_x = np.dot(np.dot(mat.H(x0x0), long_range_pair.state), x0x0)[0, 0] + np.dot(np.dot(mat.H(x1x1), long_range_pair.state), x1x1)[0, 0]
             self.correlations_x_list += [correlations_x]
 
             self.resource_cost_max_list += [long_range_pair.resource_cost_max]
@@ -281,9 +282,9 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
                 epp_event = EntanglementPurificationEvent(time=self.world.event_queue.current_time, pairs=right_pairs, protocol="dejmps")
                 self.world.event_queue.add_event(epp_event)
 
-            ent_swap_condition = (num_left_pairs == 1 and self.epp_tracking[left_pairs[0]] == 1 and
-                                  num_right_pairs == 1 and self.epp_tracking[right_pairs[0]] == 1
-                                 )
+            ent_swap_condition = (num_left_pairs == 1 and self.epp_tracking[left_pairs[0]] == 1
+                                  and num_right_pairs == 1 and self.epp_tracking[right_pairs[0]] == 1
+                                  )
             if ent_swap_condition:
                 ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pairs[0], right_pairs[0]], error_func=imperfect_bsm_err_func)
                 # print("an entswap event was scheduled at %.8f while event_queue looked like this:" % self.world.event_queue.current_time, self.world.event_queue.queue)
@@ -305,9 +306,9 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     world = World()
     station_A = Station(world, id=0, position=0, memory_noise=None)
     station_B = Station(world, id=1, position=length, memory_noise=None)
-    station_central = Station(world, id=2, position=length/2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP), memory_cutoff_time=cutoff_time)
-    source_A = SchedulingSource(world, position=length/2, target_stations=[station_A, station_central], time_distribution=time_distribution, state_generation=state_generation)
-    source_B = SchedulingSource(world, position=length/2, target_stations=[station_central, station_B], time_distribution=time_distribution, state_generation=state_generation)
+    station_central = Station(world, id=2, position=length / 2, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP), memory_cutoff_time=cutoff_time)
+    source_A = SchedulingSource(world, position=length / 2, target_stations=[station_A, station_central], time_distribution=time_distribution, state_generation=state_generation)
+    source_B = SchedulingSource(world, position=length / 2, target_stations=[station_central, station_B], time_distribution=time_distribution, state_generation=state_generation)
     protocol = TwoLinkOneStepEPP(world)
     protocol.setup()
 
