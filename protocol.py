@@ -7,6 +7,7 @@ if sys.version_info >= (3, 4):
 else:
     ABC = abc.ABCMeta('ABC', (), {})
 
+
 class Protocol(ABC):
     """Abstract base class for protocols.
 
@@ -20,9 +21,9 @@ class Protocol(ABC):
     world
 
     """
+
     def __init__(self, world):
         self.world = world
-
 
     @abstractmethod
     def setup(self):
@@ -40,5 +41,22 @@ class Protocol(ABC):
 
         Should analyze the current status of the world and event_queue to
         make decisions about next steps.
+        """
+        pass
+
+
+class MessageReadingProtocol(Protocol):
+    """Abstract Protocol that can use additional information."""
+
+    @abstractmethod
+    def check(self, message=None):
+        """Short summary.
+
+        Parameters
+        ----------
+        message : None or dict
+            Optional additional information for the Protocol to consider.
+            Default is None.
+
         """
         pass

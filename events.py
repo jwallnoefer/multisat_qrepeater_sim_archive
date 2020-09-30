@@ -39,13 +39,27 @@ class Event(ABC):
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, *args, **kwargs)" % str(self.time)
 
+    @property
+    def type(self):
+        """Returns the event type.
+
+        Returns
+        -------
+        str
+            The event type.
+
+        """
+        return self.__class__.__name__
+
     @abstractmethod
     def resolve(self):
         """Resolve the event.
 
         Returns
         -------
-        None
+        None or dict
+            dict may optionally be used to pass information to the protocol.
+            The protocol will not necessarily use this information.
 
         """
         pass
@@ -66,6 +80,7 @@ class GenericEvent(Event):
         kwargs for resolve_function.
 
     """
+
     def __init__(self, time, resolve_function, *args, **kwargs):
         self._resolve_function = resolve_function
         self._resolve_function_args = args
@@ -73,7 +88,7 @@ class GenericEvent(Event):
         super(GenericEvent, self).__init__(time)
 
     def __repr__(self):
-        return self.__class__.__name__ + "(time=" + str(time) + ", resolve_function="+str(resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
+        return self.__class__.__name__ + "(time=" + str(self.time) + ", resolve_function=" + str(self._resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
 
     def resolve(self):
         return self._resolve_function(*self._resolve_function_args, **self._resolve_function_kwargs)
@@ -145,6 +160,7 @@ class EntanglementSwappingEvent(Event):
     error_func
 
     """
+
     def __init__(self, time, pairs, error_func=None):
         self.pairs = pairs
         self.error_func = error_func  # currently a four-qubit channel, would be nicer as two-qubit channel that gets applied to the right qubits
@@ -206,6 +222,7 @@ class DiscardQubitEvent(Event):
     qubit
 
     """
+
     def __init__(self, time, qubit):
         self.qubit = qubit
         super(DiscardQubitEvent, self).__init__(time)
@@ -253,6 +270,7 @@ class EntanglementPurificationEvent(Event):
     protocol
 
     """
+
     def __init__(self, time, pairs, protocol="dejmps"):
         self.pairs = pairs
         if protocol == "dejmps":
@@ -290,11 +308,13 @@ class EntanglementPurificationEvent(Event):
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
                 pair.destroy()
-        else:
+            return {"event_type": self.type, "output_pair": output_pair, "is_successful": True}
+        else:  # if unsuccessful
             for pair in self.pairs:  # destroy all the involved pairs but track resources
                 pair.destroy_and_track_resources()
                 pair.qubits[0].destroy()
                 pair.qubits[1].destroy()
+            return {"event_type": self.type, "output_pair": None, "is_successful": False}
 
 
 class EventQueue(object):
@@ -366,7 +386,9 @@ class EventQueue(object):
 
         Returns
         -------
-        None
+        None or dict:
+            Whatever event.resolve() returns (usually None or dict). Is used to pass resolve message
+            through to the protocol.
 
         """
         event = self.queue[0]
@@ -380,8 +402,9 @@ class EventQueue(object):
             except StopIteration:
                 pass
         self.current_time = event.time
-        event.resolve()
+        return_message = event.resolve()
         self.queue = self.queue[1:]
+        return return_message
 
     def resolve_until(self, target_time):
         """Resolve events until `target_time` is reached.
