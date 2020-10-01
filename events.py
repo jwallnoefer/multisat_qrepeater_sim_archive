@@ -151,8 +151,9 @@ class EntanglementSwappingEvent(Event):
         Time at which the event will be resolved.
     pairs : list of Pairs
         The left pair and the right pair.
-    error_func : callable or None
-        A four-qubit map. Default: None
+    error_func : callable or None [Deprecated, use station.BSM_noise_model instead.]
+        A four-qubit map. Careful: This overwrites any noise behavior set by
+        station. Default: None
 
     Attributes
     ----------
@@ -185,15 +186,31 @@ class EntanglementSwappingEvent(Event):
         left_pair = self.pairs[0]
         right_pair = self.pairs[1]
         assert left_pair.qubits[1].station is right_pair.qubits[0].station
+        swapping_station = left_pair.qubits[1].station
         left_pair.update_time()
         right_pair.update_time()
         four_qubit_state = mat.tensor(left_pair.state, right_pair.state)
         # non-ideal-bell-measurement
         if self.error_func is not None:
             four_qubit_state = self.error_func(four_qubit_state)
-        my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
-        two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
-        two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
+        elif swapping_station.BSM_noise_model.channel_before is not None:
+            noise_channel = swapping_station.BSM_noise_model.channel_before
+            if noise_channel.n_qubits == 4:
+                four_qubit_state = noise_channel(four_qubit_state)
+            elif noise_channel.n_qubits == 2:
+                four_qubit_state = noise_channel.apply_to(rho=four_qubit_state, qubit_indices=[1, 2])
+            else:
+                raise ValueError("Error Channel: " + str(noise_channel) + " is not supported by Bell State Measurement. Expects a 2- or 4-qubit channel.")
+        if swapping_station.BSM_noise_model.map_replace is not None:
+            two_qubit_state = swapping_station.BSM_noise_model.map_replace(four_qubit_state)
+        else:  # do the main thing
+            my_proj = mat.tensor(mat.I(2), mat.phiplus, mat.I(2))
+            two_qubit_state = np.dot(np.dot(mat.H(my_proj), four_qubit_state), my_proj)
+            two_qubit_state = two_qubit_state / np.trace(two_qubit_state)
+        if swapping_station.BSM_noise_model.channel_after is not None:  # not sure this even makes sense in this context because qubits at station are expected to be gone
+            noise_channel = swapping_station.BSM_noise_model.channel_after
+            assert noise_channel.n_qubits == 2
+            two_qubit_state = noise_channel(two_qubit_state)
         new_pair = quantum_objects.Pair(world=left_pair.world, qubits=[left_pair.qubits[0], right_pair.qubits[1]],
                                         initial_state=two_qubit_state,
                                         initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add,

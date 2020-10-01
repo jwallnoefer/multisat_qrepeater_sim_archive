@@ -4,6 +4,7 @@ from warnings import warn
 from libs.aux_functions import apply_single_qubit_map
 import events
 from collections import defaultdict
+from noise import NoiseModel
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -253,6 +254,10 @@ class Station(WorldObject):
     memory_cutoff_time : scalar or None
         Qubits will be discarded after this amount of time in memory.
         Default: None
+    BSM_noise_model : NoiseModel
+        Noise model that is used for Bell State measurements performed at this
+        station (especially for entanglement swapping).
+        Default: dummy NoiseModel that corresponds to no noise.
 
     Attributes
     ----------
@@ -264,16 +269,24 @@ class Station(WorldObject):
         The qubits currently at this position.
     type : str
         "Station"
+    memory_noise : callable or None
+    memory_cutoff_time : callable or None
+    resource_tracking : defaultdict
+        Intermediate store for carrying over resources used by discarded
+        pairs/qubits.
+    BSM_noise_model : NoiseModel
 
     """
 
-    def __init__(self, world, id, position, memory_noise=None, memory_cutoff_time=None):
+    def __init__(self, world, id, position, memory_noise=None,
+                 memory_cutoff_time=None, BSM_noise_model=NoiseModel()):
         self.id = id
         self.position = position
         self.qubits = []
         self.resource_tracking = defaultdict(lambda: {"resource_cost_add": 0, "resource_cost_max": 0})
         self.memory_noise = memory_noise
         self.memory_cutoff_time = memory_cutoff_time
+        self.BSM_noise_model = BSM_noise_model
         super(Station, self).__init__(world)
 
     def __str__(self):
