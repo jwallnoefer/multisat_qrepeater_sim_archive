@@ -6,7 +6,7 @@ import numpy as np
 
 C = 2 * 10**8  # speed of light in optical fiber
 
-result_path = os.path.join("results", "two_link_epp")
+result_path = os.path.join("results", "two_link_epp", "investigate")
 
 params = {"P_LINK": 30 * 10**-2,
           "f_clock": 5 * 10**6,
@@ -30,7 +30,8 @@ params = {"P_LINK": 30 * 10**-2,
 #                       "P_D": P_D,
 #                       "LAMBDA_BSM": LAMBDA_BSM}
 
-length_list = np.concatenate([np.array([25000, 37500]), np.arange(50000, 125000, 10000), np.arange(125000, 425000, 25000)])
+# length_list = np.concatenate([np.array([25000, 37500]), np.arange(50000, 125000, 10000), np.arange(125000, 425000, 25000)])
+length_list = np.arange(50000, 100000, 1000)
 # length_list = np.concatenate([np.arange(1000, 61000, 2500), np.arange(61000, 69000, 1000), np.arange(69000, 84000, 2500)])
 # params = luetkenhaus_params
 
