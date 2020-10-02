@@ -30,8 +30,8 @@ params = {"P_LINK": 30 * 10**-2,
 #                       "P_D": P_D,
 #                       "LAMBDA_BSM": LAMBDA_BSM}
 
-# length_list = np.concatenate([np.array([25000, 37500]), np.arange(50000, 125000, 10000), np.arange(125000, 425000, 25000)])
-length_list = np.arange(50000, 100000, 1000)
+length_list = np.concatenate([np.array([25000, 37500]), np.arange(50000, 125000, 10000), np.arange(125000, 425000, 25000)])
+# length_list = np.arange(50000, 100000, 1000)
 # length_list = np.concatenate([np.arange(1000, 61000, 2500), np.arange(61000, 69000, 1000), np.arange(69000, 84000, 2500)])
 # params = luetkenhaus_params
 
@@ -39,6 +39,10 @@ length_list = np.arange(50000, 100000, 1000)
 print("Run without epp")
 key_per_time_list = []
 key_per_resource_list = []
+average_fidelities = []
+average_resources = []
+ez_list = []
+ex_list = []
 for length in length_list:
     print(length)
     trial_time_manual = length / C
@@ -47,6 +51,10 @@ for length in length_list:
     key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
     key_per_time_list += [key_per_time]
     key_per_resource_list += [key_per_resource]
+    average_fidelities += [np.sum(p.fidelity_list) / len(p.fidelity_list)]
+    average_resources += [np.sum(p.resource_cost_max_list) / len(p.resource_cost_max_list)]
+    ez_list += [1 - np.sum(p.correlations_z_list) / len(p.correlations_z_list)]
+    ex_list += [1 - np.sum(p.correlations_x_list) / len(p.correlations_x_list)]
     if (10 * np.log10(key_per_resource / 2)) < (-60):
         break
 path = os.path.join(result_path, "without_epp")
@@ -54,10 +62,18 @@ assert_dir(path)
 np.savetxt(os.path.join(path, "length_list.txt"), length_list[:len(key_per_resource_list)])
 np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
 np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
+np.savetxt(os.path.join(path, "average_fidelities.txt"), average_fidelities)
+np.savetxt(os.path.join(path, "average_resources.txt"), average_resources)
+np.savetxt(os.path.join(path, "ez_list.txt"), ez_list)
+np.savetxt(os.path.join(path, "ex_list.txt"), ex_list)
 
 print("Run with epp")
 key_per_time_list = []
 key_per_resource_list = []
+average_fidelities = []
+average_resources = []
+ez_list = []
+ex_list = []
 for length in length_list:
     print(length)
     trial_time_manual = length / C
@@ -66,6 +82,10 @@ for length in length_list:
     key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, 1, p.resource_cost_max_list)
     key_per_time_list += [key_per_time]
     key_per_resource_list += [key_per_resource]
+    average_fidelities += [np.sum(p.fidelity_list) / len(p.fidelity_list)]
+    average_resources += [np.sum(p.resource_cost_max_list) / len(p.resource_cost_max_list)]
+    ez_list += [1 - np.sum(p.correlations_z_list) / len(p.correlations_z_list)]
+    ex_list += [1 - np.sum(p.correlations_x_list) / len(p.correlations_x_list)]
     if (10 * np.log10(key_per_resource / 2)) < (-60):
         break
 path = os.path.join(result_path, "with_epp")
@@ -73,3 +93,7 @@ assert_dir(path)
 np.savetxt(os.path.join(path, "length_list.txt"), length_list[:len(key_per_resource_list)])
 np.savetxt(os.path.join(path, "key_per_time_list.txt"), key_per_time_list)
 np.savetxt(os.path.join(path, "key_per_resource_list.txt"), key_per_resource_list)
+np.savetxt(os.path.join(path, "average_fidelities.txt"), average_fidelities)
+np.savetxt(os.path.join(path, "average_resources.txt"), average_resources)
+np.savetxt(os.path.join(path, "ez_list.txt"), ez_list)
+np.savetxt(os.path.join(path, "ex_list.txt"), ex_list)
