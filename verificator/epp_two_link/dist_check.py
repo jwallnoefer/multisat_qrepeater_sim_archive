@@ -22,13 +22,10 @@ def h(x):
 		return 0
 	return -x*np.log2(x)-(1-x)*np.log2(1-x)
 
-def h_part(x):
+def h_derv(x):
 	if x == 0:
 		return 0
-	return -np.log2(x)-np.sign(x)/np.log(2)
-
-def h_derv(x):
-	return h_part(x) + h_part(1-x)
+	return -np.log2(x)-np.sign(x)/np.log(2)+np.log2(1-x)+(1-x)*np.sign(1-x)/np.log(2)
 
 def sample(P_link):
 	return np.random.geometric(P_link)
@@ -101,6 +98,10 @@ class Checker():
 			return True
 		return False
 
+def av_std(arr):
+	n = np.shape(arr)[0]
+	av = np.sum(arr)/n
+	return av, np.sqrt(np.sum(np.abs(arr-av)**2)/n)
 
 P_link = 0.3
 T = 10*10**-3
@@ -112,20 +113,17 @@ for l in l_arr:
 	l = l/2
 	track_list = []
 	ch = Checker(l,c,T,P_link*np.exp(-l/L_att))
-	while len(track_list) < 10000:
+	while len(track_list) < 20000:
 		write_in = ch.check()
 		if write_in:
 			track_list.append([ch.N_max, ch.fx, ch.fz])
 	track_list = np.array(track_list).T
-	N = np.mean(track_list[0])
-	fx = np.mean(track_list[1])
-	fz = np.mean(track_list[2])
-	dN = np.std(track_list[0])
-	dfx = np.std(track_list[1])
-	dfz = np.std(track_list[2])
+	N, dN = av_std(track_list[0])
+	fx, dfx = av_std(track_list[1])
+	fz, dfz = av_std(track_list[2])
 	fraction = (1-h(fx)-h(fz))
 	key_rate = fraction / N
-	dkr = np.sqrt((dN*fraction)/N**2 + (h_derv(fx)*dfx/N)**2 + (h_derv(fz)*dfz/N)**2)
+	dkr = np.sqrt(((dN*fraction)/N**2)**2 + (h_derv(fx)*dfx/N)**2 + (h_derv(fz)*dfz/N)**2)
 	res.append([2*l, key_rate, dkr])
 result_path = os.path.join("../../results", "verificator")
 assert_dir(result_path)
