@@ -11,7 +11,7 @@ y_optimal = 10 * np.log10(np.sqrt(eta))
 y_realistic_repeaterless1 = 10 * np.log10(0.7 * eta / 2)
 y_realistic_repeaterless2 = 10 * np.log10(0.1 * eta / 2)
 
-result_path = os.path.join("results", "two_link_epp")
+result_path = os.path.join("results", "two_link_epp", "investigate")
 
 path_without = os.path.join(result_path, "without_epp")
 length_list_without = np.loadtxt(os.path.join(path_without, "length_list.txt")) / 1000
