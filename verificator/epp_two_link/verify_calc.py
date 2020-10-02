@@ -1,6 +1,8 @@
 import os
 import numpy as np
-import matrix as mat
+import libs.matrix as mat
+import sys
+sys.path.append('../../')
 import sympy as sp
 from sympy.physics.quantum import TensorProduct
 from sympy.physics.quantum.operator import Operator

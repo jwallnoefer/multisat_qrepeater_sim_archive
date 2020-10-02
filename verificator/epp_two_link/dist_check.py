@@ -1,4 +1,8 @@
 import numpy as np
+import sys
+sys.path.append('../../')
+from libs.aux_functions import assert_dir
+import os
 
 z_rot = lambda a, b, c, d: np.array([b, a, d, c])
 
@@ -44,9 +48,7 @@ def cal_rho_p_d(lam_ad, lam_f):
 
 def create_n_dist(lam_ad, lam_f):
 	rho, p = cal_rho_p_d(lam_ad, lam_f)
-	#print(p)
 	cont = np.random.random() <= p
-	#print(cont)
 	return cont, rho
 
 class Checker():
@@ -58,7 +60,6 @@ class Checker():
 		self.T = T
 		self.lam_f = cal_lam_f(l, c, T)
 		self.P_link = P_link
-		print(P_link)
 		self.N_L = 0
 		self.N_R = 0
 		self.got_left = False
@@ -83,12 +84,13 @@ class Checker():
 			self.got_right, self.rho_R = create_n_dist(lam_ad_R, self.lam_f)
 			self.N_R += n_R_1 + n_R_2
 		if self.got_right and self.got_left:
-			rho = swap(*(self.rho_L+self.rho_R))
 			self.N_max = max(self.N_L, self.N_R)
 			if self.N_L>=self.N_R:
-				self.rho_L = dp_doub(2*(self.N_L-self.N_R)*self.l/self.c,self.T,*self.rho_L)
+				self.rho_L = dp_doub(2*(self.N_L - self.N_R + 1/2)*self.l/self.c,self.T,*self.rho_L)
+				self.rho_R = dp_doub(self.l/self.c,self.T,*self.rho_R) # time to communicate the 
 			else:
-				self.rho_L = dp_doub(2*(self.N_R-self.N_L)*self.l/self.c,self.T,*self.rho_R)
+				self.rho_R = dp_doub(2*(self.N_R - self.N_L + 1/2)*self.l/self.c,self.T,*self.rho_R)
+				self.rho_L = dp_doub(self.l/self.c,self.T,*self.rho_L)
 			rho = swap(*(self.rho_L+self.rho_R))	
 			self.fx = rho[1] + rho[3]
 			self.fz = rho[2] + rho[3]
@@ -125,5 +127,7 @@ for l in l_arr:
 	key_rate = fraction / N
 	dkr = np.sqrt((dN*fraction)/N**2 + (h_derv(fx)*dfx/N)**2 + (h_derv(fz)*dfz/N)**2)
 	res.append([2*l, key_rate, dkr])
-np.savetxt('res_dist_test.txt', np.array(res))
+result_path = os.path.join("../../results", "verificator")
+assert_dir(result_path)
+np.savetxt(os.path.join(result_path, "epp_two_link.txt"), np.array(res))
 
