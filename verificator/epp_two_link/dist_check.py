@@ -1,8 +1,10 @@
 import numpy as np
 import sys
 sys.path.append('../../')
+sys.path.append('../')
 from libs.aux_functions import assert_dir
 import os
+import luet
 
 z_rot = lambda a, b, c, d: np.array([b, a, d, c])
 
@@ -12,10 +14,10 @@ def dp_doub(t, T, a, b, c, d):
     lam = lam + lam - 2 * lam * lam
     return ((1 - lam) * np.array([a, b, c, d]) + lam * z_rot(a, b, c, d)).tolist()
 
-swap = lambda a, b, c, d, e, f, g, h: np.array([a*e/4 + b*f/4 + c*g/4 + d*h/4,
-       a*f/4 + b*e/4 + c*h/4 + d*g/4,
-       a*g/4 + b*h/4 + c*e/4 + d*f/4,
-       a*h/4 + b*g/4 + c*f/4 + d*e/4])
+swap = lambda a, b, c, d, e, f, g, h: np.array([a*e + b*f + c*g + d*h,
+       a*f + b*e + c*h + d*g,
+       a*g + b*h + c*e + d*f,
+       a*h + b*g + c*f + d*e])
 
 def h(x):
 	if x == 0:
@@ -47,6 +49,9 @@ def create_n_dist(lam_ad, lam_f):
 	rho, p = cal_rho_p_d(lam_ad, lam_f)
 	cont = np.random.random() <= p
 	return cont, rho
+
+
+
 
 class Checker():
 
@@ -112,6 +117,7 @@ res = []
 for l in l_arr:
 	l = l/2
 	track_list = []
+	key_rate_luet = luet.lower_bound(l)
 	ch = Checker(l,c,T,P_link*np.exp(-l/L_att))
 	while len(track_list) < 20000:
 		write_in = ch.check()
@@ -124,7 +130,7 @@ for l in l_arr:
 	fraction = (1-h(fx)-h(fz))
 	key_rate = fraction / N
 	dkr = np.sqrt(((dN*fraction)/N**2)**2 + (h_derv(fx)*dfx/N)**2 + (h_derv(fz)*dfz/N)**2)
-	res.append([2*l, key_rate, dkr])
+	res.append([2*l, key_rate, dkr, key_rate_luet])
 result_path = os.path.join("../../results", "verificator")
 assert_dir(result_path)
 np.savetxt(os.path.join(result_path, "epp_two_link.txt"), np.array(res))
