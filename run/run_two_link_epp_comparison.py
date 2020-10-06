@@ -8,9 +8,9 @@ C = 2 * 10**8  # speed of light in optical fiber
 
 result_path = os.path.join("results", "two_link_epp", "investigate")
 
-params = {"P_LINK": 30 * 10**-2,
-          "f_clock": 5 * 10**6,
-          "T_DP": 10 * 10**-3}
+# params = {"P_LINK": 30 * 10**-2,
+#           "f_clock": 5 * 10**6,
+#           "T_DP": 10 * 10**-3}
 
 # ETA_P = 0.66  # preparation efficiency
 # T_P = 2 * 10**-6  # preparation time
@@ -30,10 +30,17 @@ params = {"P_LINK": 30 * 10**-2,
 #                       "P_D": P_D,
 #                       "LAMBDA_BSM": LAMBDA_BSM}
 
-length_list = np.concatenate([np.array([25000, 37500]), np.arange(50000, 125000, 10000), np.arange(125000, 425000, 25000)])
+# params that I guess to be more favorable to epp
+params = {"P_LINK": 30 * 10**-2,
+          "T_DP": 1,
+          "E_MA": 0.05}
+
+
+# length_list = np.concatenate([np.array([25000, 37500]), np.arange(50000, 125000, 10000), np.arange(125000, 425000, 25000)])
 # length_list = np.arange(50000, 100000, 1000)
 # length_list = np.concatenate([np.arange(1000, 61000, 2500), np.arange(61000, 69000, 1000), np.arange(69000, 84000, 2500)])
 # params = luetkenhaus_params
+length_list = np.arange(25000, 425000, 25000)
 
 # run without epp first:
 print("Run without epp")
@@ -55,7 +62,7 @@ for length in length_list:
     average_resources += [np.sum(p.resource_cost_max_list) / len(p.resource_cost_max_list)]
     ez_list += [1 - np.sum(p.correlations_z_list) / len(p.correlations_z_list)]
     ex_list += [1 - np.sum(p.correlations_x_list) / len(p.correlations_x_list)]
-    if (10 * np.log10(key_per_resource / 2)) < (-60):
+    if np.float(key_per_resource) < 0 or (10 * np.log10(np.float(key_per_resource) / 2)) < (-60):
         break
 path = os.path.join(result_path, "without_epp")
 assert_dir(path)

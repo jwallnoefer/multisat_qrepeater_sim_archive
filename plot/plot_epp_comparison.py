@@ -15,11 +15,11 @@ result_path = os.path.join("results", "two_link_epp", "investigate")
 
 path_without = os.path.join(result_path, "without_epp")
 length_list_without = np.loadtxt(os.path.join(path_without, "length_list.txt")) / 1000
-skr_without = 10 * np.log10(np.loadtxt(os.path.join(path_without, "key_per_resource_list.txt"), dtype=np.complex) / 2)
+skr_without = 10 * np.log10(np.loadtxt(os.path.join(path_without, "key_per_resource_list.txt"), dtype=np.complex).astype(np.float) / 2)
 
 path_with = os.path.join(result_path, "with_epp")
 length_list_with = np.loadtxt(os.path.join(path_with, "length_list.txt")) / 1000
-skr_with = 10 * np.log10(np.loadtxt(os.path.join(path_with, "key_per_resource_list.txt"), dtype=np.complex) / 2)
+skr_with = 10 * np.log10(np.loadtxt(os.path.join(path_with, "key_per_resource_list.txt"), dtype=np.complex).astype(np.float) / 2)
 
 
 plt.plot(x_base, y_repeaterless, color="black")
