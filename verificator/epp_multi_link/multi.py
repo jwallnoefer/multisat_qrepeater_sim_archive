@@ -223,7 +223,7 @@ c = 2 * 10**8
 em = 0.05
 l_arr = [1000 * i for i in range(5, 300, 5)]
 L_att = 22 * 10**3
-n = 4
+n = 2
 res = []
 for l in l_arr:
     track_list = []
@@ -244,4 +244,4 @@ for l in l_arr:
     res.append([l, key_rate, dkr, key_rate_luet])
 result_path = os.path.join("../../results", "verificator")
 assert_dir(result_path)
-np.savetxt(os.path.join(result_path, "multi_link_epp4.txt"), np.array(res))
+np.savetxt(os.path.join(result_path, "multi_link_epp2.txt"), np.array(res))

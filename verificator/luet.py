@@ -21,11 +21,11 @@ def lower_bound(l):
     l_a = l_b = l
 	# getting all the parameters, names like in the section results
     t_p = 0	# preparation time
-    t_2 = 10*10**-3	# dephasing time
+    t_2 = 1	# dephasing time
     c = 2 * 10**8	# speed of light in fiber
     l_att = 22 * 10**3	# attenuation length
-    e_mA = 0# misalignment error Alice
-    e_mB = 0	# misalignment error Bob
+    e_mA = 0.05# misalignment error Alice
+    e_mB = 0.05	# misalignment error Bob
     p_d = 0	# dark count probablility per detector
     p_bsm = 1 # Bell state measurement success probability
     lambda_bsm = 1	# Bell state measurement ideality
