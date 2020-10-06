@@ -17,10 +17,10 @@ dc0 = lambda ae, af, ag, ah, be, bf, bg, bh, ce, cf, cg, ch, de, df, dg, dh: np.
 dc1 = lambda ae, af, ag, ah, be, bf, bg, bh, ce, cf, cg, ch, de, df, dg, dh: np.array(
     [ae + af + ag + ah, be + bf + bg + bh, ce + cf + cg + ch, de + df + dg + dh])
 """p is the ideality of the map, q = 1-p"""
-mixnswap = lambda p, q, a, b, c, d, e, f, g, h: np.array([a * e * p + b * f * p + c * g * p + d * h * p + q / 16,
-                                                          a * f * p + b * e * p + c * h * p + d * g * p + q / 16,
-                                                          a * g * p + b * h * p + c * e * p + d * f * p + q / 16,
-                                                          a * h * p + b * g * p + c * f * p + d * e * p + q / 16])
+mixnswap = lambda p, q, a, b, c, d, e, f, g, h: np.array([a * e * p + b * f * p + c * g * p + d * h * p + q / 4,
+                                                          a * f * p + b * e * p + c * h * p + d * g * p + q / 4,
+                                                          a * g * p + b * h * p + c * e * p + d * f * p + q / 4,
+                                                          a * h * p + b * g * p + c * f * p + d * e * p + q / 4])
 
 
 def dp_sing(t, T, a, b, c, d):
