@@ -9,9 +9,11 @@ import numpy as np
 # "postgres+psycopg2://[postgres, actually user, per default postgres]:[Password]@[127.0.0.1, host here local]/[Name of db]"
 engine = create_engine("postgres+psycopg2://postgres:+da_Quantum235!@127.0.0.1/qdb")
 
-def init_db():
+def init_db(engine):
     """
-    No arguments. Creates the main table, please just call once.
+    Creates the main table, please just call once.
+    Parameter:
+        - engine, sql-engine
     """
     metadata = MetaData()
     main = Table('main', metadata,
@@ -57,17 +59,19 @@ def get_par_str(descr, params):
     out += key + ':' + str(params[key])
     return out 
 
-def write_db(descr, params, tables):
+def write_db(engine, descr, params, tables, tag):
     """
     Creates or appends new data to the database.
 
     Parameter:
+        - engine, sql-engine
         - descr, string
         - params, dict
         - tables, dict
     Return
         success value, bool
     """
+    assert not 'tag' in tables, "'tag' is a forbitten key in tables. Please rename this key"
     conn = engine.connect()
     para_string = get_par_str(descr, params)
     hash_val = to_str_hash(para_string)
@@ -79,15 +83,25 @@ def write_db(descr, params, tables):
         ins = main_tab.insert().values(hash_val = hash_val, Params_and_description = para_string)
         ins.compile()
         conn.execute(ins)
+    else:
+        hash_tab = Table(hash_val, metadata, autoload=True, autoload_with=engine)
+        entry = select([hash_tab.c.tag]).where(hash_tab.c.tag == tag)
+        ex_tag = len(conn.execute(entry).fetchall()) != 0
+        if ex_tag:
+            print("There is allready data with this tag. Please make sure that you don't save the same data twice and eventually change the tag.")
+            return False
+    n = len(tables[list(tables.keys())[0]])
+    tables['tag'] = [tag]*n
     df = pd.DataFrame(tables)
     df.to_sql(hash_val, conn, if_exists = 'append')
     return True
 
-def read_db(descr, params):
+def read_db(engine, descr, params):
     """
     Reads data from the database.
 
     Parameter:
+        - engine, sql-engine
         - descr, string
         - params, dict
     Return
@@ -106,11 +120,13 @@ def read_db(descr, params):
         return False
     return pd.read_sql(hash_val, conn, index_col="index")
 
-def delete_table(**kwargs):
+def delete_table(engine, **kwargs):
     """
     Deletes data from the database.
 
     Parameter:
+        - engine, sql-engine
+        
         - descr, string
         - params, dict
         or
@@ -138,8 +154,11 @@ def delete_table(**kwargs):
     hash_tab.drop(engine)
     return True
 
-def show_all():
-    """Shows all saved parameter"""
+def show_all(engine):
+    """Shows all saved parameter
+
+    - engine, sql-engine
+    """
     conn = engine.connect()
     main_tab = pd.read_sql('main', conn)
     return main_tab
@@ -149,6 +168,7 @@ desc = "Test setup"
 params = {"Date": "28.09.2020", "Name": "Fabian"}
 tables = {"nums":[1,2,3,4,5,6,7],"prim":[0,1,1,0,1,0,1]}
 #init_db()
-write_db(desc, params, tables)
+write_db(engine, desc, params, tables,0)
 #delete_table(descr=desc, params = params)
-print(show_all())
+print(show_all(engine, ))
+print(read_db(engine, desc,params))
