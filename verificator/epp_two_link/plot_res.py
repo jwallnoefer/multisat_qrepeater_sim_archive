@@ -7,7 +7,7 @@ x = arr.T[0]
 y = 10*np.log10(arr.T[1]/2)
 er = 10/(np.log(10)*np.abs(arr.T[1]))*arr.T[2]
 plt.figure(figsize=(12,12))
-plt.errorbar(x/1000, y, yerr=er, fmt='.',label='One step of epp')
+plt.errorbar(x/1000, y, yerr=0, fmt='.',label='One step of epp')
 plt.plot(x/1000,10*np.log10(arr.T[3]/2),'.', label = 'No epp, analytic')
 plt.legend()
 plt.xlabel('Total distance in km')
