@@ -14,10 +14,12 @@ def dp_doub(t, T, a, b, c, d):
     lam = lam + lam - 2 * lam * lam
     return ((1 - lam) * np.array([a, b, c, d]) + lam * z_rot(a, b, c, d)).tolist()
 
-swap = lambda a, b, c, d, e, f, g, h: np.array([a*e + b*f + c*g + d*h,
-       a*f + b*e + c*h + d*g,
-       a*g + b*h + c*e + d*f,
-       a*h + b*g + c*f + d*e])
+def swap(a, b, c, d, e, f, g, h):
+    state = np.array([a*e/4 + b*f/4 + c*g/4 + d*h/4,
+                      a*f/4 + b*e/4 + c*h/4 + d*g/4,
+                      a*g/4 + b*h/4 + c*e/4 + d*f/4,
+                      a*h/4 + b*g/4 + c*f/4 + d*e/4])
+    return state / np.sum(state)
 
 def h(x):
 	if x == 0:
@@ -89,11 +91,11 @@ class Checker():
 			self.N_max = max(self.N_L, self.N_R)
 			if self.N_L>=self.N_R:
 				self.rho_L = dp_doub(2*(self.N_L - self.N_R + 1/2)*self.l/self.c,self.T,*self.rho_L)
-				self.rho_R = dp_doub(self.l/self.c,self.T,*self.rho_R) # time to communicate the 
+				self.rho_R = dp_doub(self.l/self.c,self.T,*self.rho_R) # time to communicate the
 			else:
 				self.rho_R = dp_doub(2*(self.N_R - self.N_L + 1/2)*self.l/self.c,self.T,*self.rho_R)
 				self.rho_L = dp_doub(self.l/self.c,self.T,*self.rho_L)
-			rho = swap(*(self.rho_L+self.rho_R))	
+			rho = swap(*(self.rho_L+self.rho_R))
 			self.fx = rho[1] + rho[3]
 			self.fz = rho[2] + rho[3]
 			self.N_L = 0
@@ -114,7 +116,10 @@ c = 2 * 10**8
 l_arr = [1000*i for i in range(5,300,5)]
 L_att = 22 * 10**3
 res = []
+fx_list = []
+fz_list = []
 for l in l_arr:
+	print(l)
 	l = l/2
 	track_list = []
 	key_rate_luet = luet.lower_bound(l)
@@ -131,7 +136,10 @@ for l in l_arr:
 	key_rate = fraction / N
 	dkr = np.sqrt(((dN*fraction)/N**2)**2 + (h_derv(fx)*dfx/N)**2 + (h_derv(fz)*dfz/N)**2)
 	res.append([2*l, key_rate, dkr, key_rate_luet])
+    fx_list.append(fx)
+	fz_list.append(fz)
 result_path = os.path.join("../../results", "verificator")
 assert_dir(result_path)
 np.savetxt(os.path.join(result_path, "epp_two_link.txt"), np.array(res))
-
+np.savetxt(os.path.join(result_path, "fx_list.txt"), np.array(fx_list))
+np.savetxt(os.path.join(result_path, "fz_list.txt"), np.array(fz_list))
