@@ -103,7 +103,7 @@ class Qubit(WorldObject):
     # station should also know about which qubits are at its location
     def __init__(self, world, station, unresolved_noise=None):
         self.station = station
-        self.unresolved_noise = None
+        self.unresolved_noise = unresolved_noise
         super(Qubit, self).__init__(world)
         self.pair = None
 
