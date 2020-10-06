@@ -1,8 +1,8 @@
+import sys
+sys.path.append('../../')
 import os
 import numpy as np
 import libs.matrix as mat
-import sys
-sys.path.append('../../')
 import sympy as sp
 from sympy.physics.quantum import TensorProduct
 from sympy.physics.quantum.operator import Operator
@@ -76,4 +76,3 @@ TT_sp = TensorProduct(T_sp, T_sp)
 four_bit_state = Dagger(TT_sp)*TensorProduct(rho_1, rho_2)*TT_sp
 p, rho_pdist = dejmps_protocol(four_bit_state)
 print(np.diag(T_sp*rho_pdist*Dagger(T_sp)))
-
