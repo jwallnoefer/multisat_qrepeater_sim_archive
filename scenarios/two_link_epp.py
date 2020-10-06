@@ -24,6 +24,14 @@ def construct_dephasing_noise_channel(dephasing_time):
     return dephasing_noise_channel
 
 
+def construct_y_noise_channel(epsilon):
+    return lambda rho: noise_channel(rho=rho, epsilon=epsilon)
+
+
+def alpha_of_eta(eta, p_d):
+    return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
+
+
 class TwoLinkOneStepEPP(MessageReadingProtocol):
     """Short summary.
 
@@ -278,9 +286,6 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
     def imperfect_bsm_err_func(four_qubit_state):
         return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
-    def alpha_of_eta(eta):
-        return eta * (1 - P_D) / (1 - (1 - eta) * (1 - P_D)**2)
-
     def time_distribution(source):
         comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
         comm_time = 2 * comm_distance / C
@@ -292,23 +297,27 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
 
     def state_generation(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
-        # TODO needs more sophisticated handling for other scenarios - especially if not only the central station is faulty
         comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
         storage_time = 2 * comm_distance / C
         for idx, station in enumerate(source.target_stations):
-            if station.memory_noise is not None:  # only central station has noisy storage
+            if station.memory_noise is not None:  # dephasing that has accrued while other qubit was travelling
                 state = apply_single_qubit_map(map_func=station.memory_noise, qubit_index=idx, rho=state, t=storage_time)
-            if station.memory_noise is None:  # only count misalignment and dark counts for end stations
-                # misalignment
-                state = apply_single_qubit_map(map_func=y_noise_channel, qubit_index=idx, rho=state, epsilon=E_MA)
+            if station.dark_count_probability is not None:  # dark counts are handled here because the information about eta is needed for that
                 eta = P_LINK * np.exp(-comm_distance / L_ATT)
-                # dark counts are modeled as white noise
-                state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta(eta))
+                state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta(eta=eta, p_d=station.dark_count_probability))
         return state
 
+    misalignment_noise = NoiseChannel(n_qubits=1, channel_function=construct_y_noise_channel(epsilon=E_MA))
+
     world = World()
-    station_A = Station(world, id=0, position=0, memory_noise=None)
-    station_B = Station(world, id=1, position=length, memory_noise=None)
+    station_A = Station(world, position=0, memory_noise=None,
+                        creation_noise_channel=misalignment_noise,
+                        dark_count_probability=P_D
+                        )
+    station_B = Station(world, position=length, memory_noise=None,
+                        creation_noise_channel=misalignment_noise,
+                        dark_count_probability=P_D
+                        )
     station_central = Station(world, id=2, position=length / 2,
                               memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP),
                               memory_cutoff_time=cutoff_time,

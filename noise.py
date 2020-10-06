@@ -33,10 +33,10 @@ class NoiseChannel(object):
         self.n_qubits = n_qubits
         self._channel_func = channel_function
 
-    def __call__(self, rho):
-        return self._channel_func(rho)
+    def __call__(self, rho, *args, **kwargs):
+        return self._channel_func(rho, *args, **kwargs)
 
-    def apply_to(self, rho, qubit_indices):  # additional functionality e.g. for different ways to define channels may be added here
+    def apply_to(self, rho, qubit_indices, *args, **kwargs):  # additional functionality e.g. for different ways to define channels may be added here
         """Apply the noise channel to specified qubits of a state `rho`.
 
         Parameters
@@ -45,6 +45,7 @@ class NoiseChannel(object):
             The density matrix the channel is applied to.
         qubit_indices : list of ints
             Numbering of qubits runs from 0...n-1
+        *args, **kwargs : are handed through to the appropriate function
 
         Returns
         -------
@@ -55,7 +56,7 @@ class NoiseChannel(object):
         assert len(qubit_indices) == self.n_qubits
         if self.n_qubits == 1:
 
-            return apply_single_qubit_map(map_func=self, qubit_index=qubit_indices[0])
+            return apply_single_qubit_map(map_func=self, qubit_index=qubit_indices[0], *args, **kwargs)
         else:
             raise NotImplementedError
 
