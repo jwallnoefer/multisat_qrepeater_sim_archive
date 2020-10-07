@@ -1,12 +1,12 @@
+import multiprocessing as mp
+import Maps as maps
+import luet
+import os
+from libs.aux_functions import assert_dir
 import numpy as np
 import sys
 sys.path.append('../../')
 sys.path.append('../')
-from libs.aux_functions import assert_dir
-import os
-import luet
-import Maps as maps
-import multiprocessing as mp
 
 
 def h(x):
@@ -41,6 +41,33 @@ def create_n_dist(ch, n2):
 
 
 def create(ch, ran_n):
+	"""
+	Functions that returns a bool whether the creation of a distilled pair 
+	worked and also the state of this pair.
+	To do this the idea is to take a list of states which are all the same, 
+	as there are at first only preparation, misalignment and single dephasing for the 
+	bit stored at the sender. This list is now reduced by distillating the first and the second,
+	the third and the fourth and so on and also tracking the number of channel uses for this new states.
+	This step is repeated until there is only one state left.
+
+	NOTE: UP TO THIS STATE CUT OFF TIMES ARE NOT RESPECTED IN THIS FUNCTION
+
+	Parameters
+	----------
+	ch : Checker
+		The checker, that uses the Link, which called this function.
+		The checker holds all needed parameter
+	ran_n : list of int
+		Random ints drawn geometrically representing for each basic, 
+		i.e. not purified or swaped pair, the number of needed channel uses.
+
+	Returns
+	-------
+	cond : bool
+		Whether the whole process worked out or not
+	rohs[0] : list of floats
+		The created state which is in the end the only element in the list of states
+	"""
     l = ch.l / ch.num_of_links
     assert np.log2(len(
         ran_n)) % 1 == 0.0, "The number of random variables have to be a power of 2 if binary"
@@ -64,19 +91,80 @@ def create(ch, ran_n):
         ran_n = new_n
         k = k - 1
     assert len(rhos) == 1, "Okay, something went wrong here, sorry for that!"
-    return np.random.random() <= p_total, rhos[0]
+    cond = np.random.random() <= p_total
+    return cond, rhos[0]
 
 
 
 class Station():
+	"""Just a little helper class for organising positions and ids.
 
+        Parameters
+        ----------
+        id : int
+            Identifies the station
+        pos : float
+            position in the line
+
+        Attributes
+        ----------
+        id : int
+        pos : float
+
+        """
     def __init__(self, ID, pos):
         self.id = ID
         self.pos = pos
 
 
 class Link():
+	"""Represents a pair with stations and so on.
 
+        Parameters
+        ----------
+        l_station : Station
+            Left station of the link.
+        R_station : Station
+            Right station of the link.
+        c : float
+        	Speed of light
+        T : float
+        	Dephasing time in seconds
+        t_cut : float
+        	Memory cut-off time.
+        N : int
+        	Number of channel uses to start with
+        t : float
+        	Time to start with
+        rho_init : list of floats
+        	State to start with in Bell-Basis
+        got : bool
+        	whether the link is already established
+        direct : bool
+        	If the stations are byneighboured
+        lam_BSM : float 
+        	Ideality of Bell-State-Measurement, i.e. between 0 and 1
+        k : int
+        	Number of purification steps in binary fashion
+
+        Attributes
+        ----------
+        left : Station
+        right : Station
+        t_cut : float
+        dist : float
+        stations : tuple of ints
+        got : bool
+        direct : bool
+        N : int
+        rho : list of floats
+        c : float
+        T : float
+        t : float
+        lam_BSM : float
+        k : int
+
+        """
     def __init__(self, l_station, r_station, c, T, t_cut=None, N=0, t=0, rho_init=[1, 0, 0, 0], got=False, direct=True, lam_BSM=1, k = 1):
         self.left = l_station
         self.right = r_station
@@ -94,12 +182,17 @@ class Link():
         self.k = k
 
     def create_init(self, P_link, ch):
+    	"""
+    	Tries to creates a k times purificated pair and tracks time and channel uses.
+
+    	Parameters
+    	----------
+    	P_link : float
+    		The distance respecting problability to create, send and receive a pair.
+    	ch : Checker
+    		The checker, that uses this link
+    	"""
         if not self.got and self.direct:
-            """n_1 = sample(P_link)
-            n_2 = sample(P_link)
-            self.got, self.rho = create_n_dist(ch, n_2)
-            self.N += n_1 + n_2
-            self.t += 2 * (n_1 + n_2) * self.dist / self.c + self.dist / self.c"""
             n_vec = [sample(P_link) for i in range(2**self.k)]
             n_sum = sum(n_vec)
             self.got, self.rho = create(ch, n_vec)
@@ -107,6 +200,23 @@ class Link():
             self.t += 2 * n_sum * self.dist / self.c + 2**(self.k - 1) * self.dist / self.c * (self.k != 0)
 
     def __add__(self, other):
+    	""" 
+    	Performed entaglement swaping on two byneighbored links, if possible.
+
+    	Parameters
+    	----------
+    	other : Link
+    		The other link.
+
+    	Returns
+    	-------
+    	None
+    		if the links are not compatible
+		0 : int
+			if there was time out due to cut off times
+		Link 
+			if it is valid to do swaping
+    	"""
         if not self.stations[1] == other.stations[0]:
             if self.stations[0] == other.stations[1]:
                 return other.__add__(self)
@@ -134,6 +244,61 @@ class Link():
 
 class Checker():
 
+	"""Represents a the setup and performs the operations.
+
+        Parameters
+        ----------
+        l : float
+            Total distance which is to overcome
+        c : float
+        	Speed of light
+        T : float
+        	Dephasing time in seconds
+        num_of_links:
+        	Number of links in the setup
+        t_cut : float
+        	Memory cut-off time.
+        em : 
+        	Misalignment error
+        N : int
+        	Number of channel uses to start with
+        t : float
+        	Time to start with
+        direct : bool
+        	If the stations are byneighboured
+        lam_BSM : float 
+        	Ideality of Bell-State-Measurement, i.e. between 0 and 1
+        lam_Dist : float 
+        	Ideality of distillation, i.e. between 0 and 1
+        p_dc : float
+        	Probability for dark counts / wrongs in the measurement for entanglement purification
+        rho_init : list of floats
+        	State to start with in Bell-Basis
+        k : int
+        	Number of purification steps in binary fashion
+
+        Attributes
+        ----------
+        P_link : float
+        l : float
+        c : float
+        T : float
+        num_of_links : int
+        k : int
+        t_cut : float or None
+        em : float
+        lam_BSM : float
+        lam_Dist : float
+        p_dc : float
+        rho_prep : list of floats
+        N_max : int
+        fx : float
+        fz : float
+        links : list of Links
+        stations : list of Stations
+
+        """
+
     def __init__(self, l, c, T, P_link, num_of_links, t_cut=None, em=0, lam_BSM=1, lam_Dist=1, p_dc=0, rho_prep=[1, 0, 0, 0], k=1):
         self.P_link = P_link
         self.l = l
@@ -143,7 +308,6 @@ class Checker():
         self.k = k
         self.t_cut = t_cut
         self.em = em
-        self.P_link = P_link
         self.lam_BSM = lam_BSM
         self.lam_Dist = lam_Dist
         self.p_dc = p_dc
@@ -292,7 +456,7 @@ def runner(kwargs):
     return 
 
 kwargs_tuple = [(1,1),(1,2),(2,1),(2,2),(3,1),(3,2),(4,1),(4,2),(5,1),(5,2),(6,1),(6,2),(7,1),(7,2),(8,1),(8,2),(5,0),(6,0),(7,0),(8,0)]
-#kwargs_tuple = [(4,2)]
+# kwargs_tuple = [(4,2)]
 kwargs_list = [{'n':n, 'k':k} for n,k in kwargs_tuple]
 with mp.Pool(min(len(kwargs_list),mp.cpu_count())) as pool:
     pool.map(runner, kwargs_list)
