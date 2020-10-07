@@ -40,7 +40,8 @@ params = {"P_LINK": 30 * 10**-2,
 # length_list = np.arange(50000, 100000, 1000)
 # length_list = np.concatenate([np.arange(1000, 61000, 2500), np.arange(61000, 69000, 1000), np.arange(69000, 84000, 2500)])
 # params = luetkenhaus_params
-length_list = np.arange(25000, 425000, 25000)
+# length_list = np.arange(25000, 425000, 25000)
+length_list = np.arange(25000, 425000, 12500)
 
 # run without epp first:
 print("Run without epp")
