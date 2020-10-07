@@ -187,7 +187,7 @@ class Pair(WorldObject):
             self.state = self.qubit1.unresolved_noise.apply_to(rho=self.state, qubit_indices=[0])
             self.qubit1.unresolved_noise = None
         if self.qubit2.unresolved_noise is not None:
-            self.state = self.qubit1.unresolved_noise.apply_to(rho=self.state, qubit_indices=[1])
+            self.state = self.qubit2.unresolved_noise.apply_to(rho=self.state, qubit_indices=[1])
             self.qubit2.unresolved_noise = None
 
         super(Pair, self).__init__(world)

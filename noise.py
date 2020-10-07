@@ -56,7 +56,7 @@ class NoiseChannel(object):
         assert len(qubit_indices) == self.n_qubits
         if self.n_qubits == 1:
 
-            return apply_single_qubit_map(map_func=self, qubit_index=qubit_indices[0], *args, **kwargs)
+            return apply_single_qubit_map(map_func=self, qubit_index=qubit_indices[0], rho=rho, *args, **kwargs)
         else:
             raise NotImplementedError
 

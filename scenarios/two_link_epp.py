@@ -25,7 +25,7 @@ def construct_dephasing_noise_channel(dephasing_time):
 
 
 def construct_y_noise_channel(epsilon):
-    return lambda rho: noise_channel(rho=rho, epsilon=epsilon)
+    return lambda rho: y_noise_channel(rho=rho, epsilon=epsilon)
 
 
 def alpha_of_eta(eta, p_d):
