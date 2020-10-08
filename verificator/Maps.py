@@ -132,4 +132,4 @@ def swap(lam, a, b, c, d, e, f, g, h):
     """
     swapped = mixnswap(lam, 1 - lam, a, b, c, d, e, f, g, h)
     normed = swapped / np.sum(swapped)  # normalising the state
-    return normed
+    return np.array(normed).tolist()
