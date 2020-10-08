@@ -197,7 +197,7 @@ class Link():
             n_sum = sum(n_vec)
             self.got, self.rho = create(ch, n_vec)
             self.N += n_sum
-            self.t += 2 * n_sum * self.dist / self.c + 2**(self.k - 1) * self.dist / self.c * (self.k != 0)
+            self.t += 2 * n_sum * self.dist / self.c + (2**self.k - 1) * self.dist / self.c 
 
     def __add__(self, other):
     	""" 
@@ -236,7 +236,7 @@ class Link():
         rho = maps.swap(self.lam_BSM, *(self.rho + other.rho))
         t = max(self.t, other.t)
         N = max(self.N, other.N)
-        return Link(self.right, other.left, self.c, self.T, N=N, t=t, rho_init=rho, got=True, direct=False, t_cut=self.t_cut, lam_BSM=self.lam_BSM, k = self.k)
+        return Link(self.left, other.right, self.c, self.T, N=N, t=t, rho_init=rho, got=True, direct=False, t_cut=self.t_cut, lam_BSM=self.lam_BSM, k = self.k)
 
     def __eq__(self, other):
         return self.stations == other.stations
@@ -346,7 +346,7 @@ class Checker():
         replacer = []
         while i != end:
             replacer.append(Link(self.stations[i], self.stations[
-                i + 1], c, T, t_cut, N=N, t=t, rho_init=rho_prep, got=False, direct=True, lam_BSM=lam_BSM, k = self.k))
+                i + 1], c, T, t_cut, N=N, t=t, rho_init=self.rho_prep, got=False, direct=True, lam_BSM=self.lam_BSM, k = self.k))
             i += 1
         links = sorted(t_sorted + rest + replacer, key=lambda l: l.stations[0])
         return links
@@ -357,15 +357,19 @@ class Checker():
             pivot = t_sorted.pop(0)
             l, r = pivot.stations
             rest = []
+            count = 1
             for j in t_sorted:
                 if l in j.stations or r in j.stations:
                     new_link = pivot + j
                     if isinstance(new_link, int):
                         return self.catch_sub(t_sorted, rest, pivot, j)
                     rest.append(new_link)
+                    if count < len(t_sorted):
+                    	rest += t_sorted[count]
                     break
                 else:
                     rest.append(j)
+                count += 1
             t_sorted = sorted(rest, key=lambda l: l.t)
         return t_sorted[0:1]
 
