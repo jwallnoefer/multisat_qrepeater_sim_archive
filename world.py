@@ -22,6 +22,9 @@ class World(object):
         self.event_queue = EventQueue()
         self.world_objects = {}  # should contain everything about the state world that the protocol needs to know
 
+    def __contains__(self, world_object):
+        return world_object in self.world_objects[world_object.type]
+
     def register_world_object(self, world_object):
         """Add a WorldObject to this world.
 
@@ -53,6 +56,6 @@ class World(object):
         None
 
         """
-        object_type = world_object.__class__.__name__
+        object_type = world_object.type
         type_list = self.world_objects[object_type]
         type_list.remove(world_object)

@@ -14,7 +14,7 @@ class DummyEvent(Event):
     def __repr__(self):
         return ""
 
-    def resolve(self):
+    def _main_effect(self):
         pass
 
 

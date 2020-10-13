@@ -21,6 +21,12 @@ class Event(ABC):
     ----------
     time : scalar
         The time at which the event will be resolved.
+    required_objects : list of QuantumObjects
+        Event will only resolve if all of these still exist at `time`.
+        Default: []
+    priority : int (expected 0...39)
+        prioritize events that happen at the same time according to this
+        (lower number means being resolved first) Default: 20
 
     Attributes
     ----------
@@ -28,11 +34,18 @@ class Event(ABC):
         The event is part of this event queue.
         (None until added to an event queue.)
     time
+    required_objects
+    priority
 
     """
 
-    def __init__(self, time, *args, **kwargs):
+    def __init__(self, time, required_objects=[], priority=20, *args, **kwargs):
         self.time = time
+        self.required_objects = required_objects
+        for required_object in self.required_objects:
+            assert required_object in required_object.world
+            required_object.required_by_events += [self]
+        self.priority = priority
         self.event_queue = None
 
     @abstractmethod
@@ -51,7 +64,26 @@ class Event(ABC):
         """
         return self.__class__.__name__
 
+    def _check_event_is_valid(self):
+        return np.all([req_object in req_object.world for req_object in self.required_objects])
+
+    def _deregister_from_objects(self):
+        for req_object in self.required_objects:
+            req_object.required_by_events.remove(self)
+
     @abstractmethod
+    def _main_effect(self):
+        """Resolve the main effect event.
+
+        Returns
+        -------
+        None or dict
+            dict may optionally be used to pass information to the protocol.
+            The protocol will not necessarily use this information.
+
+        """
+        pass
+
     def resolve(self):
         """Resolve the event.
 
@@ -62,7 +94,12 @@ class Event(ABC):
             The protocol will not necessarily use this information.
 
         """
-        pass
+        if self._check_event_is_valid():
+            return_value = self._main_effect()
+        else:
+            return_value = {"event_type": self.type, "resolve_successful": False}
+        self._deregister_from_objects()
+        return return_value
 
 
 class GenericEvent(Event):
@@ -81,16 +118,16 @@ class GenericEvent(Event):
 
     """
 
-    def __init__(self, time, resolve_function, *args, **kwargs):
+    def __init__(self, time, resolve_function, *args, required_objects=[], priority=20, **kwargs):
         self._resolve_function = resolve_function
         self._resolve_function_args = args
         self._resolve_function_kwargs = kwargs
-        super(GenericEvent, self).__init__(time)
+        super(GenericEvent, self).__init__(time=time, required_objects=required_objects, priority=priority)
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=" + str(self.time) + ", resolve_function=" + str(self._resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
 
-    def resolve(self):
+    def _main_effect(self):
         return self._resolve_function(*self._resolve_function_args, **self._resolve_function_kwargs)
 
 
@@ -123,12 +160,12 @@ class SourceEvent(Event):
         self.initial_state = initial_state
         self.generation_args = args
         self.generation_kwargs = kwargs
-        super(SourceEvent, self).__init__(time)
+        super(SourceEvent, self).__init__(time=time, required_objets=[self.source, *self.source.target_stations])
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, source=%s, initial_state=%s)" % (str(self.time), str(self.source), repr(self.initial_state))
 
-    def resolve(self):
+    def _main_effect(self):
         """Resolve the event.
 
         Generates a pair at the target stations of `self.source`.
@@ -165,12 +202,12 @@ class EntanglementSwappingEvent(Event):
     def __init__(self, time, pairs, error_func=None):
         self.pairs = pairs
         self.error_func = error_func  # currently a four-qubit channel, would be nicer as two-qubit channel that gets applied to the right qubits
-        super(EntanglementSwappingEvent, self).__init__(time)
+        super(EntanglementSwappingEvent, self).__init__(time=time, required_objects=self.pairs + [qubit for pair in self.pairs for qubit in pair.qubits])
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, pairs=%s, error_func=%s)" % (str(self.time), str(self.pairs), repr(self.error_func))
 
-    def resolve(self):
+    def _main_effect(self):
         """Resolve the event.
 
         Performs entanglement swapping between the two pairs and generates the
@@ -233,6 +270,8 @@ class DiscardQubitEvent(Event):
         Time at which the event will be resolved.
     qubit : Qubit
         The Qubit that will be discarded.
+    priority : int
+        Default: 39 (because discard events should get processed last)
 
     Attributes
     ----------
@@ -240,14 +279,14 @@ class DiscardQubitEvent(Event):
 
     """
 
-    def __init__(self, time, qubit):
+    def __init__(self, time, qubit, priority=39):
         self.qubit = qubit
-        super(DiscardQubitEvent, self).__init__(time)
+        super(DiscardQubitEvent, self).__init__(time=time, required_objects=[self.qubit], priority=priority)
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, qubit=%s)" % (str(self.time), str(self.qubit))
 
-    def resolve(self):
+    def _main_effect(self):
         """Discards the qubit and associated pair, if the qubit still exists.
 
         Returns
@@ -255,13 +294,12 @@ class DiscardQubitEvent(Event):
         None
 
         """
-        if self.qubit in self.qubit.world.world_objects["Qubit"]:  # only do something if qubit still exists
-            if self.qubit.pair is not None:
-                self.qubit.pair.destroy_and_track_resources()
-                self.qubit.pair.qubits[0].destroy()
-                self.qubit.pair.qubits[1].destroy()
-            else:
-                self.qubit.destroy()
+        if self.qubit.pair is not None:
+            self.qubit.pair.destroy_and_track_resources()
+            self.qubit.pair.qubits[0].destroy()
+            self.qubit.pair.qubits[1].destroy()
+        else:
+            self.qubit.destroy()
             # print("A Discard Event happened with eventqueue:", self.qubit.world.event_queue.queue)
 
 
@@ -296,12 +334,12 @@ class EntanglementPurificationEvent(Event):
             self.protocol = protocol
         else:
             raise ValueError("EntanglementPurificationEvent got a protocol type that is not supported: " + repr(protocol))
-        super(EntanglementPurificationEvent, self).__init__(time)
+        super(EntanglementPurificationEvent, self).__init__(time=time, required_objects=self.pairs + [qubit for pair in self.pairs for qubit in pair.qubits])
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, pairs=%s, protocol=%s)" % (repr(self.time), repr(self.pairs), repr(self.protocol))
 
-    def resolve(self):
+    def _main_effect(self):
         """Probabilistically performs the entanglement purification protocol.
 
         Returns
@@ -396,7 +434,7 @@ class EventQueue(object):
             raise ValueError("EventQueue.add_event tried to schedule an event in the past.")
         event.event_queue = self
         self.queue += [event]
-        self.queue.sort(key=lambda x: x.time)
+        self.queue.sort(key=lambda x: (x.time, x.priority))
 
     def resolve_next_event(self):
         """Remove the next scheduled event from the queue and resolve it.
@@ -409,15 +447,6 @@ class EventQueue(object):
 
         """
         event = self.queue[0]
-        if isinstance(event, DiscardQubitEvent):
-            # try to find another type of event at the same time
-            try:
-                better_event = next(filter(lambda x: x.time == event.time and not isinstance(x, DiscardQubitEvent), self.queue))
-                self.queue.remove(better_event)
-                self.queue.insert(0, better_event)
-                event = self.queue[0]
-            except StopIteration:
-                pass
         self.current_time = event.time
         return_message = event.resolve()
         self.queue = self.queue[1:]

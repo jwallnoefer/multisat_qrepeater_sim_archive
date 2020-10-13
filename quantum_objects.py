@@ -37,6 +37,7 @@ class WorldObject(ABC):
         self.world = world
         self.world.register_world_object(self)
         self.last_updated = self.event_queue.current_time
+        self.required_by_events = []
 
     def destroy(self):
         """Remove this WorldObject from the world."""
