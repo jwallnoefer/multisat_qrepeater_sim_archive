@@ -5,6 +5,7 @@ import libs.matrix as mat
 from libs.aux_functions import dejmps_protocol
 import numpy as np
 import quantum_objects
+from warnings import warn
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -27,6 +28,8 @@ class Event(ABC):
     priority : int (expected 0...39)
         prioritize events that happen at the same time according to this
         (lower number means being resolved first) Default: 20
+    ignore_blocked : bool
+        Whether the event should act even on blocked objects. Default: False
 
     Attributes
     ----------
@@ -36,16 +39,18 @@ class Event(ABC):
     time
     required_objects
     priority
+    ignore_blocked
 
     """
 
-    def __init__(self, time, required_objects=[], priority=20, *args, **kwargs):
+    def __init__(self, time, required_objects=[], priority=20, ignore_blocked=False, *args, **kwargs):
         self.time = time
         self.required_objects = required_objects
         for required_object in self.required_objects:
             assert required_object in required_object.world
             required_object.required_by_events += [self]
         self.priority = priority
+        self.ignore_blocked = ignore_blocked
         self.event_queue = None
 
     @abstractmethod
@@ -65,7 +70,14 @@ class Event(ABC):
         return self.__class__.__name__
 
     def _check_event_is_valid(self):
-        return np.all([req_object in req_object.world for req_object in self.required_objects])
+        objects_exist = np.all([(req_object in req_object.world) for req_object in self.required_objects])
+        if self.ignore_blocked:
+            objects_available = True
+        else:
+            objects_available = np.all([not req_object.is_blocked for req_object in self.required_objects])
+            if objects_exist and not objects_available:
+                warn("Event " + str(self) + " tried to access a blocked object, but is not allowed to do so. [Check whether `ignore_blocked` needs to be set.]")
+        return objects_exist and objects_available
 
     def _deregister_from_objects(self):
         for req_object in self.required_objects:
@@ -73,7 +85,7 @@ class Event(ABC):
 
     @abstractmethod
     def _main_effect(self):
-        """Resolve the main effect event.
+        """Resolve the main effect of the event.
 
         Returns
         -------
@@ -113,16 +125,22 @@ class GenericEvent(Event):
         Function that will be called when the resolve method is called.
     *args : any
         args for resolve_function.
+    required_objects : list of QuantumObjects
+        Keyword only argument. Default: []
+    priority : int
+        Keyword only argument. Default: 20
+    ignore_blocked: bool
+        Keyword only argument. Default: False
     **kwargs : any
         kwargs for resolve_function.
 
     """
 
-    def __init__(self, time, resolve_function, *args, required_objects=[], priority=20, **kwargs):
+    def __init__(self, time, resolve_function, *args, required_objects=[], priority=20, ignore_blocked=False, **kwargs):
         self._resolve_function = resolve_function
         self._resolve_function_args = args
         self._resolve_function_kwargs = kwargs
-        super(GenericEvent, self).__init__(time=time, required_objects=required_objects, priority=priority)
+        super(GenericEvent, self).__init__(time=time, required_objects=required_objects, priority=priority, ignore_blocked=ignore_blocked)
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=" + str(self.time) + ", resolve_function=" + str(self._resolve_function) + ", " + ", ".join(map(str, self._resolve_function_args)) + ", ".join(["%s=%s" % (str(k), str(v)) for k, v in self._resolve_function_kwargs.items()]) + ")"
@@ -272,6 +290,8 @@ class DiscardQubitEvent(Event):
         The Qubit that will be discarded.
     priority : int
         Default: 39 (because discard events should get processed last)
+    ignore_blocked : bool
+        Whether the event should act on blocked quantum objects. Default: True
 
     Attributes
     ----------
@@ -279,9 +299,9 @@ class DiscardQubitEvent(Event):
 
     """
 
-    def __init__(self, time, qubit, priority=39):
+    def __init__(self, time, qubit, priority=39, ignore_blocked=True):
         self.qubit = qubit
-        super(DiscardQubitEvent, self).__init__(time=time, required_objects=[self.qubit], priority=priority)
+        super(DiscardQubitEvent, self).__init__(time=time, required_objects=[self.qubit], priority=priority, ignore_blocked=True)
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, qubit=%s)" % (str(self.time), str(self.qubit))
@@ -317,16 +337,20 @@ class EntanglementPurificationEvent(Event):
         a tensor product of pair states as input and returns a tuple of
         (success probability, state of a single pair) back.
         So far only supports n->1 protocols.
+    communication_speed : scalar
+        speed at which the classical information travels
+        Default: 2*10^8 (speed of light in optical fibre)
 
 
     Attributes
     ----------
     pairs
     protocol
+    communication_speed
 
     """
 
-    def __init__(self, time, pairs, protocol="dejmps"):
+    def __init__(self, time, pairs, protocol="dejmps", communication_speed=2e8):
         self.pairs = pairs
         if protocol == "dejmps":
             self.protocol = dejmps_protocol
@@ -334,6 +358,7 @@ class EntanglementPurificationEvent(Event):
             self.protocol = protocol
         else:
             raise ValueError("EntanglementPurificationEvent got a protocol type that is not supported: " + repr(protocol))
+        self.communication_speed = communication_speed
         super(EntanglementPurificationEvent, self).__init__(time=time, required_objects=self.pairs + [qubit for pair in self.pairs for qubit in pair.qubits])
 
     def __repr__(self):
@@ -352,24 +377,68 @@ class EntanglementPurificationEvent(Event):
             pair.update_time()
         rho = mat.tensor(*[pair.state for pair in self.pairs])
         p_suc, state = self.protocol(rho)
+        output_pair = self.pairs[0]
+        output_pair.state = state
+        if output_pair.resource_cost_add is not None:
+            output_pair.resource_cost_add = np.sum([pair.resource_cost_add for pair in self.pairs])
+        if output_pair.resource_cost_max is not None:
+            output_pair.resource_cost_max = np.sum([pair.resource_cost_max for pair in self.pairs])
+        output_pair.is_blocked = True
+        for pair in self.pairs[1:]:  # pairs that have been destroyed in the process
+            pair.qubits[0].destroy()
+            pair.qubits[1].destroy()
+            pair.destroy()
+        communication_time = np.abs(output_pair.qubit2.station.position - output_pair.qubit1.station.position) / self.communication_speed
         if np.random.random() <= p_suc:  # if successful
-            output_pair = self.pairs[0]
-            output_pair.state = state
-            if output_pair.resource_cost_add is not None:
-                output_pair.resource_cost_add = np.sum([pair.resource_cost_add for pair in self.pairs])
-            if output_pair.resource_cost_max is not None:
-                output_pair.resource_cost_max = np.sum([pair.resource_cost_max for pair in self.pairs])
-            for pair in self.pairs[1:]:  # pairs that have been destroyed in the process
-                pair.qubits[0].destroy()
-                pair.qubits[1].destroy()
-                pair.destroy()
+            unblock_event = UnblockEvent(time=self.time + communication_time, quantum_objects=[output_pair])
+            self.event_queue.add_event(unblock_event)
             return {"event_type": self.type, "output_pair": output_pair, "is_successful": True}
         else:  # if unsuccessful
-            for pair in self.pairs:  # destroy all the involved pairs but track resources
-                pair.destroy_and_track_resources()
-                pair.qubits[0].destroy()
-                pair.qubits[1].destroy()
-            return {"event_type": self.type, "output_pair": None, "is_successful": False}
+            def destroy_function():
+                output_pair.destroy_and_track_resources()
+                output_pair.qubits[0].destroy()
+                output_pair.qubits[1].destroy()
+            destroy_event = GenericEvent(time=self.time + communication_time,
+                                         resolve_function=destroy_function,
+                                         required_objects=[output_pair],
+                                         priority=0, ignore_blocked=True)
+            self.event_queue.add_event(destroy_event)
+            return {"event_type": self.type, "output_pair": output_pair, "is_successful": False}
+
+
+class UnblockEvent(Event):
+    """Unblock a set of quantum objects.
+
+    This is useful to mark the time when necessary classical information has
+    arrived and the quantum objects may be used by the protocol again.
+    (e.g. after entanglement purification)
+
+    Parameters
+    ----------
+    time : scalar
+        Time at which the event will be resolved.
+    quantum_objects : list of QuantumObjects
+        The quantum objects to be unblocked.
+    priority : int (expected 0...39)
+        Default: 0 (because unblocking should happen as soon as possible)
+
+    Attributes
+    ----------
+    quantum_objects
+
+    """
+
+    def __init__(self, time, quantum_objects, priority=0):
+        self.quantum_objects = quantum_objects
+        super(UnblockEvent, self).__init__(time=time, required_objects=self.quantum_objects, priority=priority, ignore_blocked=True)
+
+    def __repr__(self):
+        return self.__class__.__name__ + "(time=%s, quantum_objects=%s, priority=%s)" % (repr(self.time), repr(self.quantum_bojects), repr(self.priority))
+
+    def _main_effect(self):
+        for quantum_object in self.quantum_objects:
+            quantum_object.is_blocked = False
+        return {"event_type": self.type, "unblocked_objects": self.quantum_objects, "resolve_successful": True}
 
 
 class EventQueue(object):

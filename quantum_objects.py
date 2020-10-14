@@ -29,6 +29,8 @@ class WorldObject(ABC):
     world : World
     event_queue : EventQueue
     last_updated : scalar
+    required_by_events : list of Events
+    is_blocked : bool
     type : str
 
     """
@@ -38,6 +40,7 @@ class WorldObject(ABC):
         self.world.register_world_object(self)
         self.last_updated = self.event_queue.current_time
         self.required_by_events = []
+        self.is_blocked = False
 
     def destroy(self):
         """Remove this WorldObject from the world."""
