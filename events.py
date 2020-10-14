@@ -178,7 +178,7 @@ class SourceEvent(Event):
         self.initial_state = initial_state
         self.generation_args = args
         self.generation_kwargs = kwargs
-        super(SourceEvent, self).__init__(time=time, required_objets=[self.source, *self.source.target_stations])
+        super(SourceEvent, self).__init__(time=time, required_objects=[self.source, *self.source.target_stations])
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, source=%s, initial_state=%s)" % (str(self.time), str(self.source), repr(self.initial_state))
@@ -384,13 +384,15 @@ class EntanglementPurificationEvent(Event):
         if output_pair.resource_cost_max is not None:
             output_pair.resource_cost_max = np.sum([pair.resource_cost_max for pair in self.pairs])
         output_pair.is_blocked = True
+        output_pair.qubit1.is_blocked = True
+        output_pair.qubit2.is_blocked = True
         for pair in self.pairs[1:]:  # pairs that have been destroyed in the process
             pair.qubits[0].destroy()
             pair.qubits[1].destroy()
             pair.destroy()
         communication_time = np.abs(output_pair.qubit2.station.position - output_pair.qubit1.station.position) / self.communication_speed
         if np.random.random() <= p_suc:  # if successful
-            unblock_event = UnblockEvent(time=self.time + communication_time, quantum_objects=[output_pair])
+            unblock_event = UnblockEvent(time=self.time + communication_time, quantum_objects=[output_pair, output_pair.qubit1, output_pair.qubit2])
             self.event_queue.add_event(unblock_event)
             return {"event_type": self.type, "output_pair": output_pair, "is_successful": True}
         else:  # if unsuccessful
@@ -433,7 +435,7 @@ class UnblockEvent(Event):
         super(UnblockEvent, self).__init__(time=time, required_objects=self.quantum_objects, priority=priority, ignore_blocked=True)
 
     def __repr__(self):
-        return self.__class__.__name__ + "(time=%s, quantum_objects=%s, priority=%s)" % (repr(self.time), repr(self.quantum_bojects), repr(self.priority))
+        return self.__class__.__name__ + "(time=%s, quantum_objects=%s, priority=%s)" % (repr(self.time), repr(self.quantum_objects), repr(self.priority))
 
     def _main_effect(self):
         for quantum_object in self.quantum_objects:
