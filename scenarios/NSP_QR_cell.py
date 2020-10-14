@@ -206,18 +206,18 @@ def run(length, max_iter, params, cutoff_time=None, mode="sim"):
             comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
             comm_time = comm_distance / C
 
-            pair_fidelity = np.dot(np.dot(mat.H(mat.phiplus), long_range_pair.state), mat.phiplus)[0, 0]
+            pair_fidelity = np.real_if_close(np.dot(np.dot(mat.H(mat.phiplus), long_range_pair.state), mat.phiplus))[0, 0]
             self.time_list += [self.world.event_queue.current_time + comm_time]
             self.fidelity_list += [pair_fidelity]
 
             z0z0 = mat.tensor(mat.z0, mat.z0)
             z1z1 = mat.tensor(mat.z1, mat.z1)
-            correlations_z = np.dot(np.dot(mat.H(z0z0), long_range_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), long_range_pair.state), z1z1)[0, 0]
+            correlations_z = np.real_if_close(np.dot(np.dot(mat.H(z0z0), long_range_pair.state), z0z0)[0, 0] +  np.dot(np.dot(mat.H(z1z1), long_range_pair.state), z1z1))[0, 0]
             self.correlations_z_list += [correlations_z]
 
             x0x0 = mat.tensor(mat.x0, mat.x0)
             x1x1 = mat.tensor(mat.x1, mat.x1)
-            correlations_x = np.dot(np.dot(mat.H(x0x0), long_range_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), long_range_pair.state), x1x1)[0, 0]
+            correlations_x = np.real_if_close(np.dot(np.dot(mat.H(x0x0), long_range_pair.state), x0x0)[0, 0] +  np.dot(np.dot(mat.H(x1x1), long_range_pair.state), x1x1))[0, 0]
             self.correlations_x_list += [correlations_x]
 
             self.resource_cost_max_list += [long_range_pair.resource_cost_max]
