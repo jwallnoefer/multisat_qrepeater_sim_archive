@@ -37,6 +37,16 @@ class TestQuantumObjects(unittest.TestCase):
         pair = Pair(world=self.world, qubits=qubits, initial_state=np.diag([1, 0, 0, 0]))
         self._aux_general_test(pair)
 
+    def test_unresolved_noise(self):
+        noisy_qubit = Qubit(world=self.world, station=MagicMock(None), unresolved_noise=test_noise_channel)
+        other_qubit = Qubit(world=self.world, station=MagicMock(None))
+        test_state = np.random.random((4, 4))
+        test_state = 1 / 2 * (test_state + mat.H(test_state))
+        test_state = test_state / np.trace(test_state)
+        pair = Pair(world=self.world, qubits=[noisy_qubit, other_qubit], initial_state=test_state)
+        expected_state = apply_single_qubit_map(map_func=lambda mu: w_noise_channel(rho=mu, alpha=0.99), qubit_index=0, rho=test_state)
+        self.assertTrue(np.allclose(pair.state, expected_state))
+
     def test_station(self):
         station = Station(world=self.world, id=1, position=0)
         self._aux_general_test(station)

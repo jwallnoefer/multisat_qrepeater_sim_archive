@@ -266,10 +266,18 @@ class EntanglementSwappingEvent(Event):
             noise_channel = swapping_station.BSM_noise_model.channel_after
             assert noise_channel.n_qubits == 2
             two_qubit_state = noise_channel(two_qubit_state)
+        if left_pair.resource_cost_add is not None and right_pair.resource_cost_add is not None:
+            new_cost_add = left_pair.resource_cost_add + right_pair.resource_cost_add
+        else:
+            new_cost_add = None
+        if left_pair.resource_cost_max is not None and right_pair.resource_cost_max is not None:
+            new_cost_max = max(left_pair.resource_cost_max, right_pair.resource_cost_max)
+        else:
+            new_cost_max = None
         new_pair = quantum_objects.Pair(world=left_pair.world, qubits=[left_pair.qubits[0], right_pair.qubits[1]],
                                         initial_state=two_qubit_state,
-                                        initial_cost_add=left_pair.resource_cost_add + right_pair.resource_cost_add,
-                                        initial_cost_max=max(left_pair.resource_cost_max, right_pair.resource_cost_max))
+                                        initial_cost_add=new_cost_add,
+                                        initial_cost_max=new_cost_max)
         # cleanup
         left_pair.qubits[1].destroy()
         right_pair.qubits[0].destroy()

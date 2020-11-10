@@ -2,14 +2,14 @@ import unittest
 from unittest.mock import MagicMock
 from world import World
 from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue, DiscardQubitEvent, EntanglementPurificationEvent, UnblockEvent
-from quantum_objects import Qubit, Pair, Station, Source
+from quantum_objects import Qubit, Pair, Station, Source, WorldObject
 import numpy as np
 import libs.matrix as mat
 
 
 class DummyEvent(Event):
-    def __init__(self, time):
-        super(DummyEvent, self).__init__(time)
+    def __init__(self, time, required_objects=[]):
+        super(DummyEvent, self).__init__(time, required_objects=required_objects)
 
     def __repr__(self):
         return ""
@@ -27,6 +27,10 @@ class PriorityEvent(Event):
 
     def _main_effect(self):
         pass
+
+
+class DummyObject(WorldObject):
+    pass
 
 
 def _known_dejmps_identical_copies(lambdas):
@@ -54,17 +58,49 @@ class TestEvents(unittest.TestCase):
     def _aux_general_test(self, event):
         self.assertIsInstance(event, Event)
 
+    def test_dummy_event(self):  # basically just tests the tracking of required objects
+        test_objects = [DummyObject(world=self.world) for i in range(20)]
+        event = DummyEvent(time=0, required_objects=test_objects)
+        self._aux_general_test(event)
+        for obj in test_objects:
+            self.assertIn(obj, event.required_objects)
+            self.assertIn(event, obj.required_by_events)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        for obj in test_objects:
+            self.assertNotIn(event, obj.required_by_events)
+
     def test_source_event(self):
         test_station = Station(world=self.world, position=0)
         test_source = Source(world=self.world, position=0, target_stations=[test_station, test_station])
         event = SourceEvent(time=0, source=test_source, initial_state=MagicMock())
         self._aux_general_test(event)
+        self.assertIn(event, test_station.required_by_events)
+        self.assertIn(event, test_source.required_by_events)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        self.assertNotIn(event, test_station.required_by_events)
+        self.assertNotIn(event, test_source.required_by_events)
 
     def test_entanglement_swapping_event(self):
-        pair1 = Pair(world=self.world, qubits=[Qubit(self.world, station=MagicMock()), Qubit(self.world, station=MagicMock())], initial_state=MagicMock())
-        pair2 = Pair(world=self.world, qubits=[Qubit(self.world, station=MagicMock()), Qubit(self.world, station=MagicMock())], initial_state=MagicMock())
+        left_station = Station(world=self.world, position=0)
+        middle_station = Station(world=self.world, position=100)
+        right_station = Station(world=self.world, position=200)
+        pair1 = Pair(world=self.world, qubits=[left_station.create_qubit(), middle_station.create_qubit()], initial_state=np.dot(mat.phiplus, mat.H(mat.phiplus)))
+        pair2 = Pair(world=self.world, qubits=[middle_station.create_qubit(), right_station.create_qubit()], initial_state=np.dot(mat.phiplus, mat.H(mat.phiplus)))
         event = EntanglementSwappingEvent(time=0, pairs=[pair1, pair2])
         self._aux_general_test(event)
+        self.assertIn(event, pair1.required_by_events)
+        self.assertIn(event, pair2.required_by_events)
+        required_qubits = [qubit for pair in [pair1, pair2] for qubit in pair.qubits]
+        for qubit in required_qubits:
+            self.assertIn(event, qubit.required_by_events)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        self.assertNotIn(event, pair1.required_by_events)
+        self.assertNotIn(event, pair2.required_by_events)
+        for qubit in required_qubits:
+            self.assertNotIn(event, qubit.required_by_events)
 
     def test_discard_qubit_event(self):
         world = World()
