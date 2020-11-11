@@ -81,6 +81,48 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
     return out.reshape((2**n, 2**n))
 
 
+def apply_m_qubit_map(map_func, qubit_indices, rho, *args, **kwargs):
+    m = len(qubit_indices)
+    # if m == 1:
+    #     return apply_single_qubit_map(map_func=map_func, qubit_index=qubit_indices[0], rho=rho, *args, **kwargs)
+    n = int(np.log2(rho.shape[0]))
+    rho = rho.reshape((2, 2) * n)
+    assert m <= n
+    qubit_indices = sorted(qubit_indices)
+    index_list = qubit_indices + [n + qubit_index for qubit_index in qubit_indices]
+    # still not found a nicer way for the iteration here
+    out = np.zeros_like(rho)
+    for idx in np.ndindex(*(2, 2) * (n - m)):
+        my_slice = list(idx)
+        for current_idx in index_list:
+            my_slice.insert(current_idx, slice(None))
+        my_slice = tuple(my_slice)
+        # print(idx, n, m, qubit_indices, index_list)
+        # print(my_slice)
+        out[my_slice] = map_func(rho[my_slice].reshape(2**m, 2**m), *args, **kwargs).reshape((2, 2) * m)
+    return out.reshape((2**n, 2**n))
+
+# def apply_m_qubit_map_alternate(map_func, qubit_indices, rho, *args, **kwargs):
+#     m = len(qubit_indices)
+#     n = int(np.log2(rho.shape[0]))
+#     rho = rho.reshape((2, 2) * n)
+#     assert m <= n
+#     qubit_indices = sorted(qubit_indices)
+#     index_list = qubit_indices + [n + qubit_index for qubit_index in qubit_indices]
+#     perm_list = [i for i in range(2 * n)]
+#     unperm_list = [i for i in range(2 * (n - m))]
+#     for j, current_idx in enumerate(index_list):
+#         perm_list.remove(current_idx)
+#         perm_list += [current_idx]
+#         unperm_list.insert(current_idx, 2 * (n - m) + j)
+#     rho = rho.transpose(perm_list).reshape((2, 2) * (n - m) + (2**m, 2**m))
+#     map_func = np.vectorize(map_func, signature="(i,j)->(i,j)")
+#     out = map_func(rho).reshape((2, 2) * n)
+#     # print(n, m, qubit_indices, index_list)
+#     # print(perm_list, unperm_list)
+#     return out.transpose(unperm_list).reshape((2**n, 2**n))
+
+
 def x_noise_channel(rho, epsilon):
     """A single-qubit bit-flip channel.
 

@@ -1,7 +1,7 @@
 import sys
 import abc
 from abc import abstractmethod
-from libs.aux_functions import apply_single_qubit_map
+from libs.aux_functions import apply_single_qubit_map, apply_m_qubit_map
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -55,10 +55,9 @@ class NoiseChannel(object):
         """
         assert len(qubit_indices) == self.n_qubits
         if self.n_qubits == 1:
-
             return apply_single_qubit_map(map_func=self, qubit_index=qubit_indices[0], rho=rho, *args, **kwargs)
         else:
-            raise NotImplementedError
+            return apply_m_qubit_map(map_func=self, qubit_indices=qubit_indices, rho=rho, *args, **kwargs)
 
 
 class NoiseModel(object):
