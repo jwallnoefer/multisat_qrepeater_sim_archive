@@ -8,8 +8,8 @@ import libs.matrix as mat
 
 
 class DummyEvent(Event):
-    def __init__(self, time, required_objects=[]):
-        super(DummyEvent, self).__init__(time, required_objects=required_objects)
+    def __init__(self, time, required_objects=[], ignore_blocked=False):
+        super(DummyEvent, self).__init__(time, required_objects=required_objects, ignore_blocked=ignore_blocked)
 
     def __repr__(self):
         return ""
@@ -123,6 +123,16 @@ class TestEvents(unittest.TestCase):
         self.assertNotIn(qubits[1], world.world_objects[qubits[1].type])
         self.assertNotIn(pair, world.world_objects[pair.type])
 
+    def test_unblock_event(self):
+        test_object = WorldObject(world=self.world)
+        test_object.is_blocked = True
+        event = UnblockEvent(time=0, quantum_objects=[test_object])
+        self._aux_general_test(event)
+        self.world.event_queue.add_event(event)
+        self.assertIs(test_object.is_blocked, True)
+        self.world.event_queue.resolve_next_event()
+        self.assertIs(test_object.is_blocked, False)
+
 
 class TestEPP(unittest.TestCase):
     # entanglement purification gets own test case because there is more to test
@@ -173,6 +183,36 @@ class TestEPP(unittest.TestCase):
         self.assertEqual(len(self.world.world_objects["Pair"]), 1)
         pair = self.world.world_objects["Pair"][0]
         self.assertTrue(np.allclose(pair.state, np.dot(mat.phiplus, mat.H(mat.phiplus))))
+
+
+class TestBlockingSystem(unittest.TestCase):
+    def setUp(self):
+        self.world = World()
+        self.event_queue = self.world.event_queue
+
+    def test_blocking(self):
+        test_objects = [WorldObject(world=self.world) for i in range(10)]
+        test_dummy_event = DummyEvent(time=0, required_objects=test_objects)
+        test_dummy_event._main_effect = MagicMock(name="_main_effect")
+        self.event_queue.add_event(test_dummy_event)
+        self.event_queue.resolve_next_event()
+        test_dummy_event._main_effect.assert_called()
+        # if one of the objects is blocked, the event should not happen
+        test_objects[3].is_blocked = True
+        test_dummy_event = DummyEvent(time=0, required_objects=test_objects)
+        test_dummy_event._main_effect = MagicMock(name="_main_effect")
+        self.event_queue.add_event(test_dummy_event)
+        with self.assertWarns(UserWarning):
+            self.event_queue.resolve_next_event()
+        test_dummy_event._main_effect.assert_not_called()
+        # ... unless the event specifically is allowed to affect blocked objects
+        # e.g. DiscardQubitEvent and UnblockEvent
+        test_objects[3].is_blocked = True
+        test_dummy_event = DummyEvent(time=0, required_objects=test_objects, ignore_blocked=True)
+        test_dummy_event._main_effect = MagicMock(name="_main_effect")
+        self.event_queue.add_event(test_dummy_event)
+        self.event_queue.resolve_next_event()
+        test_dummy_event._main_effect.assert_called()
 
 
 class TestEventQueue(unittest.TestCase):
