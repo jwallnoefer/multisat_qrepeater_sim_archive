@@ -63,7 +63,7 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
     rho : np.ndarray
         Density matrix of n qubits. Shape (2**n, 2**n)
     *args, **kwargs: any, optional
-        additional args and kwargs other than rho passed to map_func
+        additional args and kwargs passed to map_func
 
     Returns
     -------
@@ -82,6 +82,26 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
 
 
 def apply_m_qubit_map(map_func, qubit_indices, rho, *args, **kwargs):
+    """Applies an m-qubit map to a density matrix of n qubits.
+
+    Parameters
+    ----------
+    map_func : callable
+        The map to apply. Should be a function that takes a single-qubit density
+        matrix as input and applies the map to it.
+    qubit_indices : list of ints
+        Indices of qubit to which the map is applied. Indices from 0...n-1
+    rho : np.ndarray
+        Density matrix of n qubits. Shape (2**n, 2**n)
+    *args, **kwargs: any, optional
+        additional args and kwargs passed to map_func
+
+    Returns
+    -------
+    np.ndarray
+        The density matrix with the map applied. Shape (2**n, 2**n)
+
+    """
     m = len(qubit_indices)
     # if m == 1:
     #     return apply_single_qubit_map(map_func=map_func, qubit_index=qubit_indices[0], rho=rho, *args, **kwargs)
