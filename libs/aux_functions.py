@@ -63,7 +63,7 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
     rho : np.ndarray
         Density matrix of n qubits. Shape (2**n, 2**n)
     *args, **kwargs: any, optional
-        additional args and kwargs other than rho passed to map_func
+        additional args and kwargs passed to map_func
 
     Returns
     -------
@@ -79,6 +79,68 @@ def apply_single_qubit_map(map_func, qubit_index, rho, *args, **kwargs):
         my_slice = idx[:qubit_index] + (slice(None),) + idx[qubit_index:n - 1 + qubit_index] + (slice(None),) + idx[n - 1 + qubit_index:]
         out[my_slice] = map_func(rho[my_slice], *args, **kwargs)
     return out.reshape((2**n, 2**n))
+
+
+def apply_m_qubit_map(map_func, qubit_indices, rho, *args, **kwargs):
+    """Applies an m-qubit map to a density matrix of n qubits.
+
+    Parameters
+    ----------
+    map_func : callable
+        The map to apply. Should be a function that takes a single-qubit density
+        matrix as input and applies the map to it.
+    qubit_indices : list of ints
+        Indices of qubit to which the map is applied. Indices from 0...n-1
+    rho : np.ndarray
+        Density matrix of n qubits. Shape (2**n, 2**n)
+    *args, **kwargs: any, optional
+        additional args and kwargs passed to map_func
+
+    Returns
+    -------
+    np.ndarray
+        The density matrix with the map applied. Shape (2**n, 2**n)
+
+    """
+    m = len(qubit_indices)
+    # if m == 1:
+    #     return apply_single_qubit_map(map_func=map_func, qubit_index=qubit_indices[0], rho=rho, *args, **kwargs)
+    n = int(np.log2(rho.shape[0]))
+    rho = rho.reshape((2, 2) * n)
+    assert m <= n
+    qubit_indices = sorted(qubit_indices)
+    index_list = qubit_indices + [n + qubit_index for qubit_index in qubit_indices]
+    # still not found a nicer way for the iteration here
+    out = np.zeros_like(rho)
+    for idx in np.ndindex(*(2, 2) * (n - m)):
+        my_slice = list(idx)
+        for current_idx in index_list:
+            my_slice.insert(current_idx, slice(None))
+        my_slice = tuple(my_slice)
+        # print(idx, n, m, qubit_indices, index_list)
+        # print(my_slice)
+        out[my_slice] = map_func(rho[my_slice].reshape(2**m, 2**m), *args, **kwargs).reshape((2, 2) * m)
+    return out.reshape((2**n, 2**n))
+
+# def apply_m_qubit_map_alternate(map_func, qubit_indices, rho, *args, **kwargs):
+#     m = len(qubit_indices)
+#     n = int(np.log2(rho.shape[0]))
+#     rho = rho.reshape((2, 2) * n)
+#     assert m <= n
+#     qubit_indices = sorted(qubit_indices)
+#     index_list = qubit_indices + [n + qubit_index for qubit_index in qubit_indices]
+#     perm_list = [i for i in range(2 * n)]
+#     unperm_list = [i for i in range(2 * (n - m))]
+#     for j, current_idx in enumerate(index_list):
+#         perm_list.remove(current_idx)
+#         perm_list += [current_idx]
+#         unperm_list.insert(current_idx, 2 * (n - m) + j)
+#     rho = rho.transpose(perm_list).reshape((2, 2) * (n - m) + (2**m, 2**m))
+#     map_func = np.vectorize(map_func, signature="(i,j)->(i,j)")
+#     out = map_func(rho).reshape((2, 2) * n)
+#     # print(n, m, qubit_indices, index_list)
+#     # print(perm_list, unperm_list)
+#     return out.transpose(unperm_list).reshape((2**n, 2**n))
 
 
 def x_noise_channel(rho, epsilon):

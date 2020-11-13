@@ -4,6 +4,7 @@ from warnings import warn
 from libs.aux_functions import apply_single_qubit_map
 import events
 from collections import defaultdict
+from noise import NoiseModel
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -28,6 +29,8 @@ class WorldObject(ABC):
     world : World
     event_queue : EventQueue
     last_updated : scalar
+    required_by_events : list of Events
+    is_blocked : bool
     type : str
 
     """
@@ -36,6 +39,8 @@ class WorldObject(ABC):
         self.world = world
         self.world.register_world_object(self)
         self.last_updated = self.event_queue.current_time
+        self.required_by_events = []
+        self.is_blocked = False
 
     def destroy(self):
         """Remove this WorldObject from the world."""
@@ -83,6 +88,9 @@ class Qubit(WorldObject):
         This WorldObject is an object in this world.
     station : Station
         The station at which the qubit is located.
+    unresolved_noise : NoiseChannel or None
+        Noise that affected the qubit, but has not been applied to the state
+        yet. None means nothing is unresolved. Default: None
 
     Attributes
     ----------
@@ -92,12 +100,14 @@ class Qubit(WorldObject):
         The station at which the qubit is located.
     type : str
         "Qubit"
+    unresolved_noise : NoiseChannel or None
 
     """
 
     # station should also know about which qubits are at its location
-    def __init__(self, world, station):
+    def __init__(self, world, station, unresolved_noise=None):
         self.station = station
+        self.unresolved_noise = unresolved_noise
         super(Qubit, self).__init__(world)
         self.pair = None
 
@@ -176,6 +186,13 @@ class Pair(WorldObject):
                 # then reset count
                 resources1["resource_cost_max"] = 0  # changing the mutable object will also change it in the real tracking dictionary
                 resources2["resource_cost_max"] = 0
+        # apply unresolved channels of the qubits
+        if self.qubit1.unresolved_noise is not None:
+            self.state = self.qubit1.unresolved_noise.apply_to(rho=self.state, qubit_indices=[0])
+            self.qubit1.unresolved_noise = None
+        if self.qubit2.unresolved_noise is not None:
+            self.state = self.qubit2.unresolved_noise.apply_to(rho=self.state, qubit_indices=[1])
+            self.qubit2.unresolved_noise = None
 
         super(Pair, self).__init__(world)
 
@@ -244,8 +261,6 @@ class Station(WorldObject):
     ----------
     world : World
         This WorldObject is an object in this world.
-    id : int0
-        Numerical label for the station.
     position : scalar
         Position in meters in the 1D line for this linear repeater.
     memory_noise : callable or None
@@ -253,27 +268,53 @@ class Station(WorldObject):
     memory_cutoff_time : scalar or None
         Qubits will be discarded after this amount of time in memory.
         Default: None
+    BSM_noise_model : NoiseModel
+        Noise model that is used for Bell State measurements performed at this
+        station (especially for entanglement swapping).
+        Default: dummy NoiseModel that corresponds to no noise.
+    creation_noise_channel : NoiseChannel or None
+        Noise channel that is applied to a qubit on creation. (e.g. misalignment)
+        Default: None
+    dark_count_probability : scalar
+        Probability that a detector clicks without a state arriving.
+        This is not used by the Station itself, but state generation functions
+        may use this. Default: 0
+    id : int or None
+        [DEPRECATED: Do not use!] Label for the station. Default: None
 
     Attributes
     ----------
-    id : int
-        Numerical label for the station.
     position : scalar
         Position in meters in the 1D line for this linear repeater.
     qubits : list of Qubit objects
         The qubits currently at this position.
     type : str
         "Station"
+    memory_noise : callable or None
+    memory_cutoff_time : callable or None
+    resource_tracking : defaultdict
+        Intermediate store for carrying over resources used by discarded
+        pairs/qubits.
+    BSM_noise_model : NoiseModel
+    creation_noise_channel : NoiseChannel or None
+    dark_count_probability : scalar
+    id : int or None
 
     """
 
-    def __init__(self, world, id, position, memory_noise=None, memory_cutoff_time=None):
+    def __init__(self, world, position, memory_noise=None,
+                 memory_cutoff_time=None, BSM_noise_model=NoiseModel(),
+                 creation_noise_channel=None, dark_count_probability=0,
+                 id=None):
         self.id = id
         self.position = position
         self.qubits = []
         self.resource_tracking = defaultdict(lambda: {"resource_cost_add": 0, "resource_cost_max": 0})
         self.memory_noise = memory_noise
         self.memory_cutoff_time = memory_cutoff_time
+        self.BSM_noise_model = BSM_noise_model
+        self.creation_noise_channel = creation_noise_channel
+        self.dark_count_probability = dark_count_probability
         super(Station, self).__init__(world)
 
     def __str__(self):
@@ -292,7 +333,7 @@ class Station(WorldObject):
             The created Qubit object.
 
         """
-        new_qubit = Qubit(world=self.world, station=self)
+        new_qubit = Qubit(world=self.world, station=self, unresolved_noise=self.creation_noise_channel)
         self.qubits += [new_qubit]
         if self.memory_cutoff_time is not None:
             discard_event = events.DiscardQubitEvent(time=self.event_queue.current_time + self.memory_cutoff_time, qubit=new_qubit)

@@ -1,21 +1,36 @@
 import unittest
 from unittest.mock import MagicMock
 from world import World
-from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue, DiscardQubitEvent, EntanglementPurificationEvent
-from quantum_objects import Qubit, Pair, Station
+from events import Event, SourceEvent, EntanglementSwappingEvent, EventQueue, DiscardQubitEvent, EntanglementPurificationEvent, UnblockEvent
+from quantum_objects import Qubit, Pair, Station, Source, WorldObject
 import numpy as np
 import libs.matrix as mat
 
 
 class DummyEvent(Event):
-    def __init__(self, time):
-        super(DummyEvent, self).__init__(time)
+    def __init__(self, time, required_objects=[], ignore_blocked=False):
+        super(DummyEvent, self).__init__(time, required_objects=required_objects, ignore_blocked=ignore_blocked)
 
     def __repr__(self):
         return ""
 
-    def resolve(self):
+    def _main_effect(self):
         pass
+
+
+class PriorityEvent(Event):
+    def __init__(self, time, required_objects=[], priority=20):
+        super(PriorityEvent, self).__init__(time=time, required_objects=required_objects, priority=priority)
+
+    def __repr__(self):
+        return ""
+
+    def _main_effect(self):
+        pass
+
+
+class DummyObject(WorldObject):
+    pass
 
 
 def _known_dejmps_identical_copies(lambdas):
@@ -27,6 +42,7 @@ def _known_dejmps_identical_copies(lambdas):
     new_lambdas = np.array(new_lambdas) / p_suc
     return p_suc, new_lambdas
 
+
 def _bogus_epp(rho):
     p_suc = 1
     state_after = np.dot(mat.phiplus, mat.H(mat.phiplus))
@@ -36,16 +52,55 @@ def _bogus_epp(rho):
 class TestEvents(unittest.TestCase):
     # Not sure what else we could test here that does not boil down to asking
     # is the code exactly the code?
+    def setUp(self):
+        self.world = World()
+
     def _aux_general_test(self, event):
         self.assertIsInstance(event, Event)
 
-    def test_source_event(self):
-        event = SourceEvent(time=0, source=MagicMock(), initial_state=MagicMock())
+    def test_dummy_event(self):  # basically just tests the tracking of required objects
+        test_objects = [DummyObject(world=self.world) for i in range(20)]
+        event = DummyEvent(time=0, required_objects=test_objects)
         self._aux_general_test(event)
+        for obj in test_objects:
+            self.assertIn(obj, event.required_objects)
+            self.assertIn(event, obj.required_by_events)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        for obj in test_objects:
+            self.assertNotIn(event, obj.required_by_events)
+
+    def test_source_event(self):
+        test_station = Station(world=self.world, position=0)
+        test_source = Source(world=self.world, position=0, target_stations=[test_station, test_station])
+        event = SourceEvent(time=0, source=test_source, initial_state=MagicMock())
+        self._aux_general_test(event)
+        self.assertIn(event, test_station.required_by_events)
+        self.assertIn(event, test_source.required_by_events)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        self.assertNotIn(event, test_station.required_by_events)
+        self.assertNotIn(event, test_source.required_by_events)
 
     def test_entanglement_swapping_event(self):
-        event = EntanglementSwappingEvent(time=0, pairs=MagicMock(), error_func=MagicMock())
+        left_station = Station(world=self.world, position=0)
+        middle_station = Station(world=self.world, position=100)
+        right_station = Station(world=self.world, position=200)
+        pair1 = Pair(world=self.world, qubits=[left_station.create_qubit(), middle_station.create_qubit()], initial_state=np.dot(mat.phiplus, mat.H(mat.phiplus)))
+        pair2 = Pair(world=self.world, qubits=[middle_station.create_qubit(), right_station.create_qubit()], initial_state=np.dot(mat.phiplus, mat.H(mat.phiplus)))
+        event = EntanglementSwappingEvent(time=0, pairs=[pair1, pair2])
         self._aux_general_test(event)
+        self.assertIn(event, pair1.required_by_events)
+        self.assertIn(event, pair2.required_by_events)
+        required_qubits = [qubit for pair in [pair1, pair2] for qubit in pair.qubits]
+        for qubit in required_qubits:
+            self.assertIn(event, qubit.required_by_events)
+        self.world.event_queue.add_event(event)
+        self.world.event_queue.resolve_next_event()
+        self.assertNotIn(event, pair1.required_by_events)
+        self.assertNotIn(event, pair2.required_by_events)
+        for qubit in required_qubits:
+            self.assertNotIn(event, qubit.required_by_events)
 
     def test_discard_qubit_event(self):
         world = World()
@@ -67,6 +122,16 @@ class TestEvents(unittest.TestCase):
         self.assertNotIn(qubits[0], world.world_objects[qubits[0].type])
         self.assertNotIn(qubits[1], world.world_objects[qubits[1].type])
         self.assertNotIn(pair, world.world_objects[pair.type])
+
+    def test_unblock_event(self):
+        test_object = WorldObject(world=self.world)
+        test_object.is_blocked = True
+        event = UnblockEvent(time=0, quantum_objects=[test_object])
+        self._aux_general_test(event)
+        self.world.event_queue.add_event(event)
+        self.assertIs(test_object.is_blocked, True)
+        self.world.event_queue.resolve_next_event()
+        self.assertIs(test_object.is_blocked, False)
 
 
 class TestEPP(unittest.TestCase):
@@ -100,7 +165,8 @@ class TestEPP(unittest.TestCase):
                 pair2 = Pair(world=self.world, qubits=[self.station1.create_qubit(), self.station2.create_qubit()], initial_state=initial_state)
                 event = EntanglementPurificationEvent(time=self.world.event_queue.current_time, pairs=[pair1, pair2], protocol="dejmps")
                 self.world.event_queue.add_event(event)
-                self.world.event_queue.resolve_next_event()
+                self.world.event_queue.resolve_next_event()  # resolve event
+                self.world.event_queue.resolve_next_event()  # resole unblocking/discarding generated by the event
             self.assertEqual(len(self.world.world_objects["Pair"]), 1)
             pair = self.world.world_objects["Pair"][0]
             self.assertTrue(np.allclose(pair.state, trusted_state))
@@ -112,12 +178,41 @@ class TestEPP(unittest.TestCase):
         pair2 = Pair(world=self.world, qubits=[self.station1.create_qubit(), self.station2.create_qubit()], initial_state=np.dot(mat.psiplus, mat.H(mat.psiplus)))
         event = event = EntanglementPurificationEvent(time=self.world.event_queue.current_time, pairs=[pair1, pair2], protocol=_bogus_epp)
         self.world.event_queue.add_event(event)
-        self.world.event_queue.resolve_next_event()
+        self.world.event_queue.resolve_next_event()  # resolve event
+        self.world.event_queue.resolve_next_event()  # resole unblocking/discarding generated by the event
         self.assertEqual(len(self.world.world_objects["Pair"]), 1)
         pair = self.world.world_objects["Pair"][0]
         self.assertTrue(np.allclose(pair.state, np.dot(mat.phiplus, mat.H(mat.phiplus))))
 
 
+class TestBlockingSystem(unittest.TestCase):
+    def setUp(self):
+        self.world = World()
+        self.event_queue = self.world.event_queue
+
+    def test_blocking(self):
+        test_objects = [WorldObject(world=self.world) for i in range(10)]
+        test_dummy_event = DummyEvent(time=0, required_objects=test_objects)
+        test_dummy_event._main_effect = MagicMock(name="_main_effect")
+        self.event_queue.add_event(test_dummy_event)
+        self.event_queue.resolve_next_event()
+        test_dummy_event._main_effect.assert_called()
+        # if one of the objects is blocked, the event should not happen
+        test_objects[3].is_blocked = True
+        test_dummy_event = DummyEvent(time=0, required_objects=test_objects)
+        test_dummy_event._main_effect = MagicMock(name="_main_effect")
+        self.event_queue.add_event(test_dummy_event)
+        with self.assertWarns(UserWarning):
+            self.event_queue.resolve_next_event()
+        test_dummy_event._main_effect.assert_not_called()
+        # ... unless the event specifically is allowed to affect blocked objects
+        # e.g. DiscardQubitEvent and UnblockEvent
+        test_objects[3].is_blocked = True
+        test_dummy_event = DummyEvent(time=0, required_objects=test_objects, ignore_blocked=True)
+        test_dummy_event._main_effect = MagicMock(name="_main_effect")
+        self.event_queue.add_event(test_dummy_event)
+        self.event_queue.resolve_next_event()
+        test_dummy_event._main_effect.assert_called()
 
 
 class TestEventQueue(unittest.TestCase):
@@ -141,7 +236,7 @@ class TestEventQueue(unittest.TestCase):
         mockEvent1 = MagicMock(time=0)
         mockEvent2 = MagicMock(time=1)
         self.event_queue.add_event(mockEvent2)
-        self.event_queue.add_event(mockEvent1) # events added to queue in wrong order
+        self.event_queue.add_event(mockEvent1)  # events added to queue in wrong order
         self.event_queue.resolve_next_event()
         mockEvent1.resolve.assert_called_once()
         mockEvent2.resolve.assert_not_called()
@@ -153,12 +248,39 @@ class TestEventQueue(unittest.TestCase):
         mock_events = [MagicMock(time=i) for i in range(num_events)]
         for event in mock_events:
             self.event_queue.add_event(event)
-        target_time=5
+        target_time = 5
         self.event_queue.resolve_until(target_time)
-        self.assertEqual(len(self.event_queue), num_events-(np.floor(target_time)+1))
+        self.assertEqual(len(self.event_queue), num_events - (np.floor(target_time) + 1))
         self.assertEqual(self.event_queue.current_time, target_time)
-        with self.assertRaises(ValueError): # if given target_time in the past
+        with self.assertRaises(ValueError):  # if given target_time in the past
             self.event_queue.resolve_until(0)
+
+
+class TestPrioritySystem(unittest.TestCase):
+    def setUp(self):
+        self.world = World()
+        self.event_queue = self.world.event_queue
+
+    def test_priority_sorting(self):
+        test_time = np.random.random() * 20
+        important_event = PriorityEvent(time=test_time, priority=0)
+        normal_event = PriorityEvent(time=test_time, priority=20)
+        unimportant_event = PriorityEvent(time=test_time, priority=39)
+        self.event_queue.add_event(normal_event)
+        self.event_queue.add_event(unimportant_event)
+        self.event_queue.add_event(important_event)
+        self.assertEqual(self.event_queue.queue, [important_event, normal_event, unimportant_event])
+
+    def test_reasonable_priorities(self):
+        test_time = np.random.random() * 20
+        test_qubit = Qubit(world=self.world, station=MagicMock())
+        discard_qubit_event = DiscardQubitEvent(time=test_time, qubit=test_qubit)
+        normal_event = DummyEvent(time=test_time)
+        unblock_event = UnblockEvent(time=test_time, quantum_objects=[test_qubit])
+        self.event_queue.add_event(discard_qubit_event)
+        self.event_queue.add_event(normal_event)
+        self.event_queue.add_event(unblock_event)
+        self.assertEqual(self.event_queue.queue, [unblock_event, normal_event, discard_qubit_event])
 
 
 if __name__ == '__main__':
