@@ -28,6 +28,10 @@ def construct_y_noise_channel(epsilon):
     return lambda rho: y_noise_channel(rho=rho, epsilon=epsilon)
 
 
+def construct_w_noise_channel(epsilon):
+    return lambda rho: w_noise_channel(rho=rho, alpha=(1 - epsilon))
+
+
 def alpha_of_eta(eta, p_d):
     return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
 
