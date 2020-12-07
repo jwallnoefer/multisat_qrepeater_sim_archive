@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # fixed length, different memories
     result_path = os.path.join("results", "multimemory_variant_memories")
     num_processes = 32
-    memories_list = np.unique(np.logspace(np.log10(1), np.log10(400), num=50, endpoint=True, base=10), dtype=int))
+    memories_list = np.unique(np.logspace(np.log10(1), np.log10(400), num=50, endpoint=True, base=10, dtype=int))
     length_list = [50e3, 100e3, 150e3, 200e3]
     max_iter = 1e5
     res = {}
