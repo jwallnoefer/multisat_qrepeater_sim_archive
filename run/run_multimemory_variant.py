@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # print("The whole run took %s seconds." % str(time() - start_time))
 
     # fixed number of memories, variable cutoff_time
-    result_path = os.path.join("results", "multimemory_variant_by_cutoff")
+    result_path = os.path.join("results", "multimemory_variant_fixed_mem")
     num_processes = 32
     num_memories = 400
     length_list = np.arange(10000, 400000, 2500)
