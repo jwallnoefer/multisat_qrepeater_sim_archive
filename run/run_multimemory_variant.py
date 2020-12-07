@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
         for num_memories in memories_list:
             key_per_time_list, key_per_resource_list = zip(*list(res[num_memories].get()))
-            print(num_memories)
+            print("memories=%s finished after %.2f minutes." % (str(num_memories), (time() - start_time) / 60.0))
 
             output_path = os.path.join(result_path, "%d_memories" % num_memories)
             assert_dir(output_path)
