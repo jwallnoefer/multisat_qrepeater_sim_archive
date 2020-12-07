@@ -87,33 +87,34 @@ if __name__ == "__main__":
     #     # plt.show()
 
     # cluster variant
-    num_processes = 20
-    length_list = np.arange(10000, 400000, 10000)
+    num_processes = 32
+    length_list = np.arange(10000, 400000, 2500)
     memories_list = [1, 5, 10, 50, 100, 400]
-    max_iter = 10000
+    max_iter = 1e6
     res = {}
     start_time = time()
-    pool = Pool(num_processes)
-    for num_memories in memories_list:
-        # BEGIN cutoff estimation
-        trial_time_manual = T_P + 2 * (length_list / 2) / C
-        expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-        cutoff_time = 3 * expected_time
-        # END cutoff estimation
-        num_calls = len(length_list)
-        aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_time, [num_memories] * num_calls)
-        res[num_memories] = pool.starmap_async(do_the_thing, aux_list)
-    pool.close()
-    pool.join()
+    with Pool(num_processes) as pool:
+        for num_memories in memories_list:
+            # BEGIN cutoff estimation
+            trial_time_manual = T_P + 2 * (length_list / 2) / C
+            expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
+            cutoff_time = 3 * expected_time
+            # END cutoff estimation
+            num_calls = len(length_list)
+            aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_time, [num_memories] * num_calls)
+            res[num_memories] = pool.starmap_async(do_the_thing, aux_list)
+        pool.close()
+        # pool.join()
 
-    for num_memories in memories_list:
-        key_per_time_list, key_per_resource_list = zip(*list(res[num_memories].get()))
+        for num_memories in memories_list:
+            key_per_time_list, key_per_resource_list = zip(*list(res[num_memories].get()))
+            print(num_memories)
 
-        output_path = os.path.join(result_path, "%d_memories" % num_memories)
-        assert_dir(output_path)
+            output_path = os.path.join(result_path, "%d_memories" % num_memories)
+            assert_dir(output_path)
 
-        np.savetxt(os.path.join(output_path, "length_list.txt"), length_list[:len(key_per_resource_list)])
-        np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-        np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
+            np.savetxt(os.path.join(output_path, "length_list.txt"), length_list[:len(key_per_resource_list)])
+            np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
+            np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
 
     print("The whole run took %s seconds." % str(time() - start_time))
