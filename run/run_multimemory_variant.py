@@ -197,7 +197,8 @@ if __name__ == "__main__":
     # BEGIN cutoff estimation
     trial_time_manual = T_P + 2 * (length_list / 2) / C
     expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    cutoff_multipliers = np.arange(0.25, 5.25, 0.25)
+    # cutoff_multipliers = np.arange(0.25, 5.25, 0.25)
+    cutoff_multipliers = [0.02, 0.03, 0.05, 0.10]
     # END cutoff estimation
     max_iter = 1e5
     res = {}
