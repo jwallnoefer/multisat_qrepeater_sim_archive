@@ -198,7 +198,9 @@ if __name__ == "__main__":
     trial_time_manual = T_P + 2 * (length_list / 2) / C
     expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
     # cutoff_multipliers = np.arange(0.25, 5.25, 0.25)
-    cutoff_multipliers = [0.02, 0.03, 0.05, 0.10]
+    # cutoff_multipliers = [0.02, 0.03, 0.05, 0.10]
+    cutoff_multipliers = [0.001, 0.005, 0.01]
+
     # END cutoff estimation
     max_iter = 1e5
     res = {}
@@ -215,7 +217,7 @@ if __name__ == "__main__":
             key_per_time_list, key_per_resource_list = zip(*list(res[cutoff_multiplier].get()))
             print("cutoff_multiplier=%s finished after %.2f minutes." % (str(cutoff_multiplier), (time() - start_time) / 60.0))
 
-            output_path = os.path.join(result_path, "%.2f_cutoff" % cutoff_multiplier)
+            output_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
             assert_dir(output_path)
 
             np.savetxt(os.path.join(output_path, "length_list.txt"), length_list)
