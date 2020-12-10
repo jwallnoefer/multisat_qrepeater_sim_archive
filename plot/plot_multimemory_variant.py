@@ -79,7 +79,7 @@ for num_memories in [1, 5, 10, 50, 100, 400]:
     plt.scatter(x, y, label="num_memories=%d" % num_memories)
 
 plt.yscale("log")
-# plt.ylim(1e-6, 1e-3)
+plt.ylim(1e-6, 1e-4)
 # plt.xlim(0, 300)
 plt.legend()
 plt.xlabel("cutoff_time")
@@ -107,7 +107,17 @@ plt.show()
 
 # fourth: fixed memories, x-axis=length
 result_path = os.path.join("results", "multimemory_variant_fixed_mem")
-for cutoff_multiplier in np.concatenate([0.02, 0.03, 0.05, 0.10], np.arange(0.25, 5.25, 0.25)):
+
+for cutoff_multiplier in [0.001, 0.005, 0.01]:
+    try:
+        memory_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
+        x = np.loadtxt(os.path.join(memory_path, "length_list.txt")) / 1000
+        y = np.loadtxt(os.path.join(memory_path, "key_per_resource_list.txt"), dtype=np.complex) / 2
+        plt.scatter(x, y, label="cutoff_multiplier=%.3f" % cutoff_multiplier)
+    except OSError:
+        pass
+
+for cutoff_multiplier in np.concatenate([[0.02, 0.03, 0.05, 0.10], [0.25, 0.5]]):  # np.arange(0.25, 3.25, 0.25)]):
     try:
         memory_path = os.path.join(result_path, "%.2f_cutoff" % cutoff_multiplier)
         x = np.loadtxt(os.path.join(memory_path, "length_list.txt")) / 1000
@@ -126,7 +136,16 @@ plt.title("fixed 400 memories")
 plt.grid()
 plt.show()
 
-for cutoff_multiplier in np.concatenate([0.02, 0.03, 0.05, 0.10], np.arange(0.25, 5.25, 0.25)):
+for cutoff_multiplier in [0.001, 0.005, 0.01]:
+    try:
+        memory_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
+        x = np.loadtxt(os.path.join(memory_path, "length_list.txt")) / 1000
+        y = np.loadtxt(os.path.join(memory_path, "key_per_time_list.txt"), dtype=np.complex) / 2
+        plt.scatter(x, y, label="cutoff_multiplier=%.2f" % cutoff_multiplier)
+    except OSError:
+        pass
+
+for cutoff_multiplier in np.concatenate([[0.02, 0.03, 0.05, 0.10], [0.25, 0.5]]):  # np.arange(0.25, 3.25, 0.25)]):
     try:
         memory_path = os.path.join(result_path, "%.2f_cutoff" % cutoff_multiplier)
         x = np.loadtxt(os.path.join(memory_path, "length_list.txt")) / 1000
