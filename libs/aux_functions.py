@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import libs.matrix as mat
+import pandas as pd
 
 
 sqrt_plus_ix = 1 / np.sqrt(2) * (mat.I(2) + 1j * mat.X)
@@ -21,16 +22,60 @@ def binary_entropy(p):
         return -p * np.log2(p) - (1 - p) * np.log2((1 - p))
 
 
-def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_interval):
-    e_z = 1 - np.sum(correlations_z) / len(correlations_z)
-    e_x = 1 - np.sum(correlations_x) / len(correlations_x)
-    return len(correlations_z) / time_interval * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_interval, return_std=False):
+    e_z = 1 - np.mean(correlations_z)
+    e_x = 1 - np.mean(correlations_x)
+    pair_per_time = len(correlations_z) / time_interval
+    keyrate = pair_per_time * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+    if not return_std:
+        return keyrate
+    # use error propagation formula
+    keyrate_std = pair_per_time * np.sqrt((-np.log2(e_x) + np.log2(1 - e_x))**2 * np.std(correlations_x)
+                                          + err_corr_ineff**2 * (-np.log2(e_z) + np.log2(1 - e_z))**2 * np.std(correlations_x)
+                                          )
+    return keyrate, keyrate_std
 
 
-def calculate_keyrate_channel_use(correlations_z, correlations_x, err_corr_ineff, resource_list):
-    e_z = 1 - np.sum(correlations_z) / len(correlations_z)
-    e_x = 1 - np.sum(correlations_x) / len(correlations_x)
-    return len(correlations_z) / np.sum(resource_list) * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+def calculate_keyrate_channel_use(correlations_z, correlations_x, err_corr_ineff, resource_list, return_std=False):
+    e_z = 1 - np.mean(correlations_z)
+    e_x = 1 - np.mean(correlations_x)
+    pair_per_resource = len(correlations_z) / np.sum(resource_list)
+    keyrate = pair_per_resource * (1 - binary_entropy(e_x) - err_corr_ineff * binary_entropy(e_z))
+    if not return_std:
+        return keyrate
+    # use error propagation formula
+    keyrate_std = pair_per_resource * np.sqrt((-np.log2(e_x) + np.log2(1 - e_x))**2 * np.std(correlations_x)
+                                              + err_corr_ineff**2 * (-np.log2(e_z) + np.log2(1 - e_z))**2 * np.std(correlations_x)
+                                              )
+    return keyrate, keyrate_std
+
+
+def standard_bipartite_evaluation(data_frame, err_corr_ineff=1):
+    states = data_frame["state"]
+
+    fidelity_list = np.real_if_close([np.dot(np.dot(mat.H(mat.phiplus), state), mat.phiplus)[0, 0] for state in states])
+    fidelity = np.mean(fidelity_list)
+    fidelity_std = np.std(fidelity_list)
+
+    z0z0 = mat.tensor(mat.z0, mat.z0)
+    z1z1 = mat.tensor(mat.z1, mat.z1)
+    correlations_z = np.real_if_close([np.dot(np.dot(mat.H(z0z0), state), z0z0)[0, 0] + np.dot(np.dot(mat.H(z1z1), state), z1z1)[0, 0] for state in states])
+
+    x0x0 = mat.tensor(mat.x0, mat.x0)
+    x1x1 = mat.tensor(mat.x1, mat.x1)
+    correlations_x = np.real_if_close([np.dot(np.dot(mat.H(x0x0), state), x0x0)[0, 0] + np.dot(np.dot(mat.H(x1x1), state), x1x1)[0, 0] for state in states])
+
+    key_per_time, key_per_time_std = calculate_keyrate_time(correlations_z=correlations_z,
+                                                            correlations_x=correlations_x,
+                                                            err_corr_ineff=err_corr_ineff,
+                                                            time_interval=data_frame["time"].iloc[-1],
+                                                            return_std=True)
+    key_per_resource, key_per_resource_std = calculate_keyrate_channel_use(correlations_z=correlations_z,
+                                                                           correlations_x=correlations_x,
+                                                                           err_corr_ineff=err_corr_ineff,
+                                                                           resource_list=data_frame["resource_cost_max"],
+                                                                           return_std=True)
+    return [fidelity, fidelity_std, key_per_time, key_per_time_std, key_per_resource, key_per_resource_std]
 
 
 def assert_dir(path):

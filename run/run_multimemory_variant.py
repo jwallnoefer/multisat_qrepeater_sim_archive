@@ -1,10 +1,11 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.multi_memory_variant import run
-from libs.aux_functions import assert_dir, binary_entropy, calculate_keyrate_time, calculate_keyrate_channel_use
+from libs.aux_functions import assert_dir, standard_bipartite_evaluation
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
 from multiprocessing import Pool
+import pandas as pd
 
 C = 2 * 10**8  # speed of light in optical fiber
 L_ATT = 22 * 10**3  # attenuation length
@@ -34,9 +35,7 @@ params = {"P_LINK": ETA_TOT,
 
 def do_the_thing(length, max_iter, params, cutoff_time, num_memories):
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories)
-    key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, F, p.world.event_queue.current_time + 2 * length / C)
-    key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, F, p.resource_cost_max_list)
-    return key_per_time, key_per_resource
+    return p.data
 
 
 if __name__ == "__main__":
@@ -191,18 +190,20 @@ if __name__ == "__main__":
 
     # fixed number of memories, variable cutoff_time
     result_path = os.path.join("results", "multimemory_variant_fixed_mem")
-    num_processes = 32
+    num_processes = 2
     num_memories = 400
-    length_list = np.arange(10000, 400000, 2500)
+    # length_list = np.arange(10000, 400000, 2500)
+    length_list = np.arange(10000, 400000, 20000)
     # BEGIN cutoff estimation
     trial_time_manual = T_P + 2 * (length_list / 2) / C
     expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
     # cutoff_multipliers = np.arange(0.25, 5.25, 0.25)
     # cutoff_multipliers = [0.02, 0.03, 0.05, 0.10]
-    cutoff_multipliers = [0.001, 0.005, 0.01]
+    # cutoff_multipliers = [0.001, 0.005, 0.01]
+    cutoff_multipliers = [0.002]
 
     # END cutoff estimation
-    max_iter = 1e5
+    max_iter = 1e2
     res = {}
     start_time = time()
     with Pool(num_processes) as pool:
@@ -214,14 +215,11 @@ if __name__ == "__main__":
         # pool.join()
 
         for cutoff_multiplier in cutoff_multipliers:
-            key_per_time_list, key_per_resource_list = zip(*list(res[cutoff_multiplier].get()))
+            data_series = pd.Series(data=res[cutoff_multiplier].get(), index=length_list)
             print("cutoff_multiplier=%s finished after %.2f minutes." % (str(cutoff_multiplier), (time() - start_time) / 60.0))
-
             output_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
             assert_dir(output_path)
-
-            np.savetxt(os.path.join(output_path, "length_list.txt"), length_list)
-            np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-            np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
-
-    print("The whole run took %s seconds." % str(time() - start_time))
+            data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+            result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
+            output_data = pd.DataFrame(data=result_list, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
+            output_data.to_csv(os.path.join(output_path, "result.csv"))

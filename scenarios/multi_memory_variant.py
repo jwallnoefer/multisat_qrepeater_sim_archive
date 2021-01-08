@@ -1,6 +1,6 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from quantum_objects import SchedulingSource, Source, Station
-from protocol import Protocol, MessageReadingProtocol
+from protocol import TwoLinkProtocol
 from world import World
 from events import SourceEvent, EntanglementSwappingEvent, EntanglementPurificationEvent
 import libs.matrix as mat
@@ -9,12 +9,8 @@ from libs.aux_functions import apply_single_qubit_map, y_noise_channel, z_noise_
 from warnings import warn
 from collections import defaultdict
 from noise import NoiseModel, NoiseChannel
-
-# WARNING: this protocol will not work with memory time outs as that is managed separately by the protocol
-
-
-C = 2 * 10**8  # speed of light in optical fiber
-L_ATT = 22 * 10**3  # attenuation length
+import pandas as pd
+from consts import C, L_ATT
 
 
 def construct_dephasing_noise_channel(dephasing_time):
@@ -38,96 +34,11 @@ def construct_w_noise_channel(epsilon):
 def alpha_of_eta(eta, p_d):
     return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
 
-class MultiMemoryProtocol(Protocol):
+
+class MultiMemoryProtocol(TwoLinkProtocol):
     def __init__(self, world, num_memories):
         self.num_memories = num_memories
-        # self.mode = mode  # only sim is supported
-        self.time_list = []
-        self.fidelity_list = []
-        self.correlations_z_list = []
-        self.correlations_x_list = []
-        self.resource_cost_max_list = []
         super(MultiMemoryProtocol, self).__init__(world=world)
-
-    def setup(self):
-        """Identifies the stations and sources in the world.
-
-        Should be run after the relevant WorldObjects have been added
-        to the world.
-
-        Returns
-        -------
-        None
-
-        """
-        stations = self.world.world_objects["Station"]
-        assert len(stations) == 3
-        self.station_A, self.station_central, self.station_B = sorted(stations, key=lambda x: x.position)
-        sources = self.world.world_objects["Source"]
-        assert len(sources) == 2
-        self.source_A = next(filter(lambda source: self.station_A in source.target_stations and self.station_central in source.target_stations, sources))
-        self.source_B = next(filter(lambda source: self.station_central in source.target_stations and self.station_B in source.target_stations, sources))
-        assert callable(getattr(self.source_A, "schedule_event", None))  # schedule_event is a required method for this protocol
-        assert callable(getattr(self.source_B, "schedule_event", None))
-
-    def _pair_is_between_stations(self, pair, station1, station2):
-        return (pair.qubit1.station == station1 and pair.qubit2.station == station2) or (pair.qubit1.station == station2 and pair.qubit2.station == station1)
-
-    def _get_left_pairs(self):
-        try:
-            pairs = self.world.world_objects["Pair"]
-        except KeyError:
-            pairs = []
-        return list(filter(lambda x: self._pair_is_between_stations(x, self.station_A, self.station_central), pairs))
-
-    def _get_right_pairs(self):
-        try:
-            pairs = self.world.world_objects["Pair"]
-        except KeyError:
-            pairs = []
-        return list(filter(lambda x: self._pair_is_between_stations(x, self.station_central, self.station_B), pairs))
-
-    def _get_long_range_pairs(self):
-        try:
-            pairs = self.world.world_objects["Pair"]
-        except KeyError:
-            pairs = []
-        return list(filter(lambda x: self._pair_is_between_stations(x, self.station_A, self.station_B), pairs))
-
-    def _left_pairs_scheduled(self):
-        return list(filter(lambda event: (isinstance(event, SourceEvent)
-                           and (self.station_A in event.source.target_stations)
-                           and (self.station_central in event.source.target_stations)
-                           ),
-                    self.world.event_queue.queue))
-
-    def _right_pairs_scheduled(self):
-        return list(filter(lambda event: (isinstance(event, SourceEvent)
-                           and (self.station_central in event.source.target_stations)
-                           and (self.station_B in event.source.target_stations)
-                           ),
-                    self.world.event_queue.queue))
-
-    def _eval_pair(self, long_range_pair):
-        comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
-        comm_time = comm_distance / C
-
-        pair_fidelity = np.real_if_close(np.dot(np.dot(mat.H(mat.phiplus), long_range_pair.state), mat.phiplus))[0, 0]
-        self.time_list += [self.world.event_queue.current_time + comm_time]
-        self.fidelity_list += [pair_fidelity]
-
-        z0z0 = mat.tensor(mat.z0, mat.z0)
-        z1z1 = mat.tensor(mat.z1, mat.z1)
-        correlations_z = np.real_if_close(np.dot(np.dot(mat.H(z0z0), long_range_pair.state), z0z0)[0, 0] + np.dot(np.dot(mat.H(z1z1), long_range_pair.state), z1z1))[0, 0]
-        self.correlations_z_list += [correlations_z]
-
-        x0x0 = mat.tensor(mat.x0, mat.x0)
-        x1x1 = mat.tensor(mat.x1, mat.x1)
-        correlations_x = np.real_if_close(np.dot(np.dot(mat.H(x0x0), long_range_pair.state), x0x0)[0, 0] + np.dot(np.dot(mat.H(x1x1), long_range_pair.state), x1x1))[0, 0]
-        self.correlations_x_list += [correlations_x]
-
-        self.resource_cost_max_list += [long_range_pair.resource_cost_max]
-        return
 
     def check(self):
         left_pairs = self._get_left_pairs()
@@ -246,25 +157,13 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, mode="sim"):
     protocol = MultiMemoryProtocol(world, num_memories=num_memories)
     protocol.setup()
 
-    # def print_status(world):
-    #     print("Event queue:")
-    #     for event in world.event_queue.queue:
-    #         print(event)
-    #     print("%================%")
-    #     print("Objects")
-    #     for k, v in world.world_objects.items():
-    #         print("------")
-    #         print(k + ":")
-    #         for obj in v:
-    #             print(obj)
-    #
     # def step_check():
     #     protocol.check()
-    #     print_status(world)
+    #     world.print_status()
     #
     # def step_resolve():
     #     world.event_queue.resolve_next_event()
-    #     print_status(world)
+    #     world.print_status()
     #
     # import code
     # code.interact(local=locals())

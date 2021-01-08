@@ -25,6 +25,25 @@ class World(object):
     def __contains__(self, world_object):
         return world_object in self.world_objects[world_object.type]
 
+    def print_status(self):
+        """Print scheduled events and objects in a somewhat formatted way.
+
+        Returns
+        -------
+        None
+
+        """
+        print("Event queue:")
+        for event in self.event_queue.queue:
+            print(event)
+        print("%================%")
+        print("Objects")
+        for k, v in self.world_objects.items():
+            print("------")
+            print(k + ":")
+            for obj in v:
+                print(obj)
+
     def register_world_object(self, world_object):
         """Add a WorldObject to this world.
 
