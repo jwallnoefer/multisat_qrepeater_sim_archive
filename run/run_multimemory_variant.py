@@ -190,20 +190,16 @@ if __name__ == "__main__":
 
     # fixed number of memories, variable cutoff_time
     result_path = os.path.join("results", "multimemory_variant_fixed_mem")
-    num_processes = 2
+    num_processes = 32
     num_memories = 400
-    # length_list = np.arange(10000, 400000, 2500)
-    length_list = np.arange(10000, 400000, 20000)
+    length_list = np.arange(10000, 400000, 2500)
     # BEGIN cutoff estimation
     trial_time_manual = T_P + 2 * (length_list / 2) / C
     expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    # cutoff_multipliers = np.arange(0.25, 5.25, 0.25)
-    # cutoff_multipliers = [0.02, 0.03, 0.05, 0.10]
-    # cutoff_multipliers = [0.001, 0.005, 0.01]
-    cutoff_multipliers = [0.002]
+    cutoff_multipliers = [0.001, 0.005, 0.010, 0.020, 0.030, 0.050, 0.100, 0.250, 0.500]
 
     # END cutoff estimation
-    max_iter = 1e2
+    max_iter = 1e5
     res = {}
     start_time = time()
     with Pool(num_processes) as pool:
