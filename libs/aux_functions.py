@@ -30,8 +30,8 @@ def calculate_keyrate_time(correlations_z, correlations_x, err_corr_ineff, time_
     if not return_std:
         return keyrate
     # use error propagation formula
-    keyrate_std = pair_per_time * np.sqrt((-np.log2(e_x) + np.log2(1 - e_x))**2 * np.std(correlations_x)
-                                          + err_corr_ineff**2 * (-np.log2(e_z) + np.log2(1 - e_z))**2 * np.std(correlations_x)
+    keyrate_std = pair_per_time * np.sqrt((-np.log2(e_x) + np.log2(1 - e_x))**2 * np.std(correlations_x)**2
+                                          + err_corr_ineff**2 * (-np.log2(e_z) + np.log2(1 - e_z))**2 * np.std(correlations_z)**2
                                           )
     return keyrate, keyrate_std
 
@@ -44,8 +44,8 @@ def calculate_keyrate_channel_use(correlations_z, correlations_x, err_corr_ineff
     if not return_std:
         return keyrate
     # use error propagation formula
-    keyrate_std = pair_per_resource * np.sqrt((-np.log2(e_x) + np.log2(1 - e_x))**2 * np.std(correlations_x)
-                                              + err_corr_ineff**2 * (-np.log2(e_z) + np.log2(1 - e_z))**2 * np.std(correlations_x)
+    keyrate_std = pair_per_resource * np.sqrt((-np.log2(e_x) + np.log2(1 - e_x))**2 * np.std(correlations_x)**2
+                                              + err_corr_ineff**2 * (-np.log2(e_z) + np.log2(1 - e_z))**2 * np.std(correlations_z)**2
                                               )
     return keyrate, keyrate_std
 
