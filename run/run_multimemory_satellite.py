@@ -50,7 +50,7 @@ if __name__ == "__main__":
         params["T_DP"] = 7.5
         result_path = os.path.join("results", "multimemory_satellite_cutoff")
         num_processes = 32
-        length_list = np.linspace(10e3, 1800e3, num=100)
+        length_list = np.linspace(10e3, 3200e3, num=120)
         num_memories = 1000
         max_iter = 1e5
         if int(sys.argv[1]) == 0:
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         # variable memory quality
         result_path = os.path.join("results", "multimemory_satellite_dephasing")
         num_processes = 32
-        length_list = np.linspace(10e3, 1800e3, num=100)
+        length_list = np.linspace(10e3, 3200e3, num=120)
         num_memories = 1000
         max_iter = 1e5
         cutoff_multiplier = 0.050
