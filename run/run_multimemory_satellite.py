@@ -50,7 +50,8 @@ if __name__ == "__main__":
         params["T_DP"] = 7.5
         result_path = os.path.join("results", "multimemory_satellite_cutoff")
         num_processes = 32
-        length_list = np.linspace(10e3, 3200e3, num=120)
+        # length_list = np.linspace(10e3, 3200e3, num=120)
+        length_list = np.linspace(3250e3, 4000e3, num=30)
         num_memories = 1000
         max_iter = 1e5
         if int(sys.argv[1]) == 0:
@@ -73,10 +74,20 @@ if __name__ == "__main__":
                 print("cutoff_multiplier=%s finished after %.2f minutes." % (str(cutoff_multiplier), (time() - start_time) / 60.0))
                 output_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
                 assert_dir(output_path)
-                data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                try:
+                    existing_series = pd.read_pickle(os.path.join(output_path, "raw_data.bz2"))
+                    combined_series = existing_series.append(data_series)
+                    combined_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                except FileNotFoundError:
+                    data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
                 result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
                 output_data = pd.DataFrame(data=result_list, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
-                output_data.to_csv(os.path.join(output_path, "result.csv"))
+                try:
+                    existing_data = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+                    combined_data = pd.concat([existing_data, output_data])
+                    combined_data.to_csv(os.path.join(output_path, "result.csv"))
+                except FileNotFoundError:
+                    output_data.to_csv(os.path.join(output_path, "result.csv"))
 
         print("The whole run took %s seconds." % str(time() - start_time))
 
@@ -84,7 +95,8 @@ if __name__ == "__main__":
         # variable memory quality
         result_path = os.path.join("results", "multimemory_satellite_dephasing")
         num_processes = 32
-        length_list = np.linspace(10e3, 3200e3, num=120)
+        # length_list = np.linspace(10e3, 3200e3, num=120)
+        length_list = np.linspace(3250e3, 4000e3, num=30)
         num_memories = 1000
         max_iter = 1e5
         cutoff_multiplier = 0.050
@@ -111,7 +123,17 @@ if __name__ == "__main__":
                 print("dephasing=%s finished after %.2f minutes." % (str(t_dp), (time() - start_time) / 60.0))
                 output_path = os.path.join(result_path, "%.2f_dephasing" % t_dp)
                 assert_dir(output_path)
-                data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                try:
+                    existing_series = pd.read_pickle(os.path.join(output_path, "raw_data.bz2"))
+                    combined_series = existing_series.append(data_series)
+                    combined_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                except FileNotFoundError:
+                    data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
                 result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
                 output_data = pd.DataFrame(data=result_list, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
-                output_data.to_csv(os.path.join(output_path, "result.csv"))
+                try:
+                    existing_data = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+                    combined_data = pd.concat([existing_data, output_data])
+                    combined_data.to_csv(os.path.join(output_path, "result.csv"))
+                except FileNotFoundError:
+                    output_data.to_csv(os.path.join(output_path, "result.csv"))
