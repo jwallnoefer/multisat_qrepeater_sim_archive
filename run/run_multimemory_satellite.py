@@ -51,7 +51,7 @@ if __name__ == "__main__":
         result_path = os.path.join("results", "multimemory_satellite_cutoff")
         num_processes = 32
         # length_list = np.linspace(10e3, 3200e3, num=120)
-        length_list = np.linspace(3250e3, 4000e3, num=30)
+        length_list = np.linspace(3225e3, 3600e3, num=15)
         num_memories = 1000
         max_iter = 1e5
         if int(sys.argv[1]) == 0:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         result_path = os.path.join("results", "multimemory_satellite_dephasing")
         num_processes = 32
         # length_list = np.linspace(10e3, 3200e3, num=120)
-        length_list = np.linspace(3250e3, 4000e3, num=30)
+        length_list = np.linspace(3225e3, 3600e3, num=15)
         num_memories = 1000
         max_iter = 1e5
         cutoff_multiplier = 0.050
