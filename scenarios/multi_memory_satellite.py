@@ -11,7 +11,7 @@ from collections import defaultdict
 from noise import NoiseModel, NoiseChannel
 import pandas as pd
 from consts import SPEED_OF_LIGHT_IN_VACCUM as C
-
+from functools import lru_cache
 
 def construct_dephasing_noise_channel(dephasing_time):
     def lambda_dp(t):
@@ -180,6 +180,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, mode="sim"):
         random_num = np.random.geometric(eta_effective)
         return random_num * trial_time, random_num
 
+    @lru_cache()  # CAREFUL: only makes sense if positions and errors do not change!
     def state_generation(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
         comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
