@@ -77,7 +77,7 @@ if __name__ == "__main__":
         for first_satellite_multiplier in first_satellite_multipliers:
             data_series = pd.Series(data=res[first_satellite_multiplier].get(), index=length_list)
             print("first_satellite_multiplier=%s finished after %.2f minutes." % (str(first_satellite_multiplier), (time() - start_time) / 60.0))
-            output_path = os.path.join(result_path, "%.3f_first_sat" % cutoff_multiplier)
+            output_path = os.path.join(result_path, "%.3f_first_sat" % first_satellite_multiplier)
             assert_dir(output_path)
             try:
                 existing_series = pd.read_pickle(os.path.join(output_path, "raw_data.bz2"))
