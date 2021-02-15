@@ -233,7 +233,12 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, mode="sim"):
 
 
 if __name__ == "__main__":
-    p = run(length=22000, max_iter=1000, params={"P_LINK": 0.01, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, num_memories=400, mode="sim")
-    # import matplotlib.pyplot as plt
-    # plt.scatter(p.time_list, p.fidelity_list)
-    # plt.show()
+    import matplotlib.pyplot as plt
+    length_list = np.linspace(0, 4000e3, num=40)
+    ps = [run(length=length, max_iter=1000, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, cutoff_time=0.5, num_memories=1000) for length in length_list]
+    from libs.aux_functions import standard_bipartite_evaluation
+    res = [standard_bipartite_evaluation(p.data) for p in ps]
+    plt.errorbar(length_list / 1000, [r[4] / 2 for r in res], yerr=[r[5] / 2 for r in res], fmt="o")  # 10 * np.log10(key_per_resource))
+    plt.yscale("log")
+    plt.legend()
+    plt.show()
