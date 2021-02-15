@@ -98,7 +98,10 @@ class TwoLinkProtocol(Protocol):
         """
         stations = self.world.world_objects["Station"]
         assert len(stations) == 3
-        self.station_A, self.station_central, self.station_B = sorted(stations, key=lambda x: x.position)
+        if isinstance(stations[0].position, int):
+            self.station_A, self.station_central, self.station_B = sorted(stations, key=lambda x: x.position)
+        else:
+            self.station_A, self.station_central, self.station_B = stations
         sources = self.world.world_objects["Source"]
         assert len(sources) == 2
         self.source_A = next(filter(lambda source: self.station_A in source.target_stations and self.station_central in source.target_stations, sources))
