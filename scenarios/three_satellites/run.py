@@ -62,7 +62,7 @@ if __name__ == "__main__":
     elif int(sys.argv[1]) == 3:
         first_satellite_multipliers = first_satellite_multipliers[6:8]
     elif int(sys.argv[1]) == 4:
-        first_satellite_multipliers = first_satellite_multipliers[-1]
+        first_satellite_multipliers = first_satellite_multipliers[8:]
     res = {}
     start_time = time()
     with Pool(num_processes) as pool:
