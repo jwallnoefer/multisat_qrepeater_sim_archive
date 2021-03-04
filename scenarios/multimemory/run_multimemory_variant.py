@@ -1,5 +1,5 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
-from scenarios.multi_memory_variant import run
+from scenarios.multimemory.multi_memory_variant import run
 from libs.aux_functions import assert_dir, standard_bipartite_evaluation
 import numpy as np
 import matplotlib.pyplot as plt

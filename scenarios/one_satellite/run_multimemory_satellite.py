@@ -1,5 +1,5 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
-from scenarios.multi_memory_satellite import run, sat_dist_curved, elevation_curved
+from scenarios.one_satellite.multi_memory_satellite import run, sat_dist_curved, elevation_curved
 from libs.aux_functions import assert_dir, standard_bipartite_evaluation
 import numpy as np
 import matplotlib.pyplot as plt

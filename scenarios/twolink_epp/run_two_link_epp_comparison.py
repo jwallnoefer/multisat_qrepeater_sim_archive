@@ -1,6 +1,6 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
-from scenarios.NSP_QR_cell import run as run_nsp
-from scenarios.two_link_epp import run as run_epp
+from scenarios.whitepaper.NSP_QR_cell import run as run_nsp
+from scenarios.twolink_epp.two_link_epp import run as run_epp
 from libs.aux_functions import assert_dir, calculate_keyrate_time, calculate_keyrate_channel_use
 import numpy as np
 
