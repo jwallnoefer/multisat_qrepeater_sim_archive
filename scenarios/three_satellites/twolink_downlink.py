@@ -47,6 +47,8 @@ def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_ap
 def eta_atm(elevation):
     # eta of pi/2 to the power of csc(theta), equation (A4) in https://arxiv.org/abs/2006.10636
     # eta of pi/2 (i.e. straight up) is ~0.8 for 780nm wavelength.
+    if elevation < 0:
+        return 0
     return ETA_ATM_PI_HALF_780_NM**(1 / np.sin(elevation))
 
 
@@ -118,6 +120,7 @@ class MultiMemoryProtocol(TwoLinkProtocol):
 
 def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satellite_ground_dist_multiplier=0.25):
     # unpack the parameters
+    print(length)
     try:
         P_LINK = params["P_LINK"]
     except KeyError:
@@ -294,11 +297,12 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    length_list = np.linspace(0, 4000e3, num=40)
-    # length_list = [22e3]
+    length_list = np.linspace(6000e3, 24000e3, num=10)
+    # length_list = [0]
     for sat_pos in [0, 0.125, 0.25, 0.375, 0.5]:
         print(sat_pos)
-        ps = [run(length=length, max_iter=1000, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
+        # ps = [run(length=length, max_iter=1000, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
+        ps = [run(length=length, max_iter=100, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
         from libs.aux_functions import standard_bipartite_evaluation
         res = [standard_bipartite_evaluation(p.data) for p in ps]
         plt.errorbar(length_list / 1000, [r[4] / 2 for r in res], yerr=[r[5] / 2 for r in res], fmt="o", label=str(sat_pos))  # 10 * np.log10(key_per_resource))
