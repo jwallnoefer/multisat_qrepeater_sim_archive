@@ -1,14 +1,13 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.multi_memory_variant import run
-from libs.aux_functions import assert_dir, binary_entropy, calculate_keyrate_time, calculate_keyrate_channel_use
+from libs.aux_functions import assert_dir, standard_bipartite_evaluation
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
 from multiprocessing import Pool
+import pandas as pd
+from consts import C, L_ATT
 
-C = 2 * 10**8  # speed of light in optical fiber
-L_ATT = 22 * 10**3  # attenuation length
-# result_path = os.path.join("results", "multimemory_variant_cutoff")
 
 # # # values taken from Róbert Trényi, Norbert Lütkenhaus https://arxiv.org/abs/1910.10962
 T_P = 2 * 10**-6  # preparation time
@@ -34,194 +33,143 @@ params = {"P_LINK": ETA_TOT,
 
 def do_the_thing(length, max_iter, params, cutoff_time, num_memories):
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories)
-    key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, F, p.world.event_queue.current_time + 2 * length / C)
-    key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, F, p.resource_cost_max_list)
-    return key_per_time, key_per_resource
+    return p.data
 
 
 if __name__ == "__main__":
-    # # length_list = np.arange(20000, 400000, 20000)
-    # # length_list = np.arange(5000, 200000, 5000)
-    # length_list = np.arange(10000, 400000, 10000)
-    # max_iter = 10000
-    # for num_memories in [1, 5, 10, 50, 100, 400]:
-    #     key_per_time_list = []
-    #     key_per_resource_list = []
-    #     from time import time
-    #     start_time = time()
-    #     for l in length_list:
-    #         print(l)
-    #         # BEGIN cutoff estimation
-    #         trial_time_manual = T_P + 2 * (l / 2) / C
-    #         expected_time = trial_time_manual / (ETA_TOT * np.exp(-(l / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    #         cutoff_time = 3 * expected_time
-    #         # END cutoff estimation
-    #         p = run(length=l, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories)
-    #         key_per_time = calculate_keyrate_time(p.correlations_z_list, p.correlations_x_list, F, p.world.event_queue.current_time + 2 * l / C)
-    #         key_per_resource = calculate_keyrate_channel_use(p.correlations_z_list, p.correlations_x_list, F, p.resource_cost_max_list)
-    #
-    #         key_per_time_list += [key_per_time]
-    #         key_per_resource_list += [key_per_resource]
-    #         if key_per_resource < 0:
-    #             break
-    #         # print("l=%d took %s seconds" % (l, str(time() - start_time)))
-    #
-    #     output_path = os.path.join(result_path, "%d_memories" % num_memories)
-    #     assert_dir(output_path)
-    #
-    #     np.savetxt(os.path.join(output_path, "length_list.txt"), length_list[:len(key_per_resource_list)])
-    #     np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-    #     np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
-    #
-    #     print("num_memories=%d took %s seconds" % (num_memories, str(time() - start_time)))
-    #
-    #     # plt.plot(length_list[:len(key_per_resource_list)], key_per_time_list)
-    #     # plt.yscale("log")
-    #     # plt.xlabel("total length")
-    #     # plt.ylabel("key_rate_per_time")
-    #     # plt.show()
-    #     #
-    #     # plt.plot(length_list[:len(key_per_resource_list)], key_per_resource_list)
-    #     # plt.yscale("log")
-    #     # plt.xlabel("total length")
-    #     # plt.ylabel("key rate per channel use")
-    #     # plt.show()
+    if int(sys.argv[1]) == 0:
+        # cluster variant
+        result_path = os.path.join("results", "multimemory_variant_cutoff")
+        num_processes = 32
+        length_list = np.arange(10000, 400000, 2500)
+        memories_list = [1, 5, 10, 50, 100, 400]
+        max_iter = 1e5
+        res = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for num_memories in memories_list:
+                # BEGIN cutoff estimation
+                trial_time_manual = T_P + 2 * (length_list / 2) / C
+                expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
+                cutoff_time = 3 * expected_time
+                # END cutoff estimation
+                num_calls = len(length_list)
+                aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_time, [num_memories] * num_calls)
+                res[num_memories] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            # pool.join()
 
-    # # cluster variant
-    # result_path = os.path.join("results", "multimemory_variant_cutoff")
-    # num_processes = 32
-    # length_list = np.arange(10000, 400000, 2500)
-    # memories_list = [1, 5, 10, 50, 100, 400]
-    # max_iter = 1e5
-    # res = {}
-    # start_time = time()
-    # with Pool(num_processes) as pool:
-    #     for num_memories in memories_list:
-    #         # BEGIN cutoff estimation
-    #         trial_time_manual = T_P + 2 * (length_list / 2) / C
-    #         expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    #         cutoff_time = 3 * expected_time
-    #         # END cutoff estimation
-    #         num_calls = len(length_list)
-    #         aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_time, [num_memories] * num_calls)
-    #         res[num_memories] = pool.starmap_async(do_the_thing, aux_list)
-    #     pool.close()
-    #     # pool.join()
-    #
-    #     for num_memories in memories_list:
-    #         key_per_time_list, key_per_resource_list = zip(*list(res[num_memories].get()))
-    #         print("memories=%s finished after %.2f minutes." % (str(num_memories), (time() - start_time) / 60.0))
-    #
-    #         output_path = os.path.join(result_path, "%d_memories" % num_memories)
-    #         assert_dir(output_path)
-    #
-    #         np.savetxt(os.path.join(output_path, "length_list.txt"), length_list[:len(key_per_resource_list)])
-    #         np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-    #         np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
-    #
-    # print("The whole run took %s seconds." % str(time() - start_time))
+            for num_memories in memories_list:
+                data_series = pd.Series(data=res[num_memories].get(), index=length_list)
+                print("memories=%s finished after %.2f minutes." % (str(num_memories), (time() - start_time) / 60.0))
+                output_path = os.path.join(result_path, "%d_memories" % num_memories)
+                assert_dir(output_path)
+                data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
+                output_data = pd.DataFrame(data=result_list, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
+                output_data.to_csv(os.path.join(output_path, "result.csv"))
 
-    # # fixed length, different memories
-    # result_path = os.path.join("results", "multimemory_variant_memories")
-    # num_processes = 32
-    # memories_list = np.unique(np.logspace(np.log10(1), np.log10(400), num=50, endpoint=True, base=10, dtype=int))
-    # length_list = [50e3, 100e3, 150e3, 200e3]
-    # max_iter = 1e5
-    # res = {}
-    # start_time = time()
-    # with Pool(num_processes) as pool:
-    #     for length in length_list:
-    #         # BEGIN cutoff estimation
-    #         trial_time_manual = T_P + 2 * (length / 2) / C
-    #         expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    #         cutoff_time = 3 * expected_time
-    #         # END cutoff estimation
-    #         num_calls = len(memories_list)
-    #         aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, memories_list)
-    #         res[length] = pool.starmap_async(do_the_thing, aux_list)
-    #     pool.close()
-    #     # pool.join()
-    #
-    #     for length in length_list:
-    #         key_per_time_list, key_per_resource_list = zip(*list(res[length].get()))
-    #         print("length=%s finished after %.2f minutes." % (str(length), (time() - start_time) / 60.0))
-    #
-    #         output_path = os.path.join(result_path, "%d_km" % (length / 1000))
-    #         assert_dir(output_path)
-    #
-    #         np.savetxt(os.path.join(output_path, "memories_list.txt"), memories_list)
-    #         np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-    #         np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
-    #
-    # print("The whole run took %s seconds." % str(time() - start_time))
+        print("The whole run took %s seconds." % str(time() - start_time))
 
-    # # fixed length, different cutoff times
-    # result_path = os.path.join("results", "multimemory_variant_by_cutoff")
-    # num_processes = 32
-    # memories_list = [1, 5, 10, 50, 100, 400]
-    # length = 150e3
-    # # BEGIN cutoff estimation
-    # trial_time_manual = T_P + 2 * (length / 2) / C
-    # expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    # cutoff_times = np.arange(0.25, 5.25, 0.25) * expected_time
-    # # END cutoff estimation
-    # max_iter = 1e5
-    # res = {}
-    # start_time = time()
-    # with Pool(num_processes) as pool:
-    #     for num_memories in memories_list:
-    #         num_calls = len(cutoff_times)
-    #         aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, cutoff_times, [num_memories] * num_calls)
-    #         res[num_memories] = pool.starmap_async(do_the_thing, aux_list)
-    #     pool.close()
-    #     # pool.join()
-    #
-    #     for num_memories in memories_list:
-    #         key_per_time_list, key_per_resource_list = zip(*list(res[num_memories].get()))
-    #         print("memories=%s finished after %.2f minutes." % (str(num_memories), (time() - start_time) / 60.0))
-    #
-    #         output_path = os.path.join(result_path, "%d_memories" % num_memories)
-    #         assert_dir(output_path)
-    #
-    #         np.savetxt(os.path.join(output_path, "cutoff_times.txt"), cutoff_times)
-    #         np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-    #         np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
-    #
-    # print("The whole run took %s seconds." % str(time() - start_time))
+    elif int(sys.argv[1]) == 1:
+        # fixed length, different memories
+        result_path = os.path.join("results", "multimemory_variant_memories")
+        num_processes = 32
+        memories_list = np.unique(np.logspace(np.log10(1), np.log10(400), num=50, endpoint=True, base=10, dtype=int))
+        length_list = [50e3, 100e3, 150e3, 200e3]
+        max_iter = 1e5
+        res = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for length in length_list:
+                # BEGIN cutoff estimation
+                trial_time_manual = T_P + 2 * (length / 2) / C
+                expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
+                cutoff_time = 3 * expected_time
+                # END cutoff estimation
+                num_calls = len(memories_list)
+                aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, memories_list)
+                res[length] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            # pool.join()
 
-    # fixed number of memories, variable cutoff_time
-    result_path = os.path.join("results", "multimemory_variant_fixed_mem")
-    num_processes = 32
-    num_memories = 400
-    length_list = np.arange(10000, 400000, 2500)
-    # BEGIN cutoff estimation
-    trial_time_manual = T_P + 2 * (length_list / 2) / C
-    expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
-    # cutoff_multipliers = np.arange(0.25, 5.25, 0.25)
-    # cutoff_multipliers = [0.02, 0.03, 0.05, 0.10]
-    cutoff_multipliers = [0.001, 0.005, 0.01]
+            for length in length_list:
+                data_series = pd.Series(data=res[length].get(), index=memories_list)
+                print("length=%s finished after %.2f minutes." % (str(length), (time() - start_time) / 60.0))
+                output_path = os.path.join(result_path, "%d_km" % (length / 1000))
+                assert_dir(output_path)
+                data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
+                output_data = pd.DataFrame(data=result_list, index=memories_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
+                output_data.to_csv(os.path.join(output_path, "result.csv"))
 
-    # END cutoff estimation
-    max_iter = 1e5
-    res = {}
-    start_time = time()
-    with Pool(num_processes) as pool:
-        for cutoff_multiplier in cutoff_multipliers:
-            num_calls = len(length_list)
-            aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_multiplier * expected_time, [num_memories] * num_calls)
-            res[cutoff_multiplier] = pool.starmap_async(do_the_thing, aux_list)
-        pool.close()
-        # pool.join()
+        print("The whole run took %s seconds." % str(time() - start_time))
 
-        for cutoff_multiplier in cutoff_multipliers:
-            key_per_time_list, key_per_resource_list = zip(*list(res[cutoff_multiplier].get()))
-            print("cutoff_multiplier=%s finished after %.2f minutes." % (str(cutoff_multiplier), (time() - start_time) / 60.0))
+    elif int(sys.argv[1]) == 2:
+        # fixed length, different cutoff times
+        result_path = os.path.join("results", "multimemory_variant_by_cutoff")
+        num_processes = 32
+        memories_list = [1, 5, 10, 50, 100, 400]
+        length = 150e3
+        # BEGIN cutoff estimation
+        trial_time_manual = T_P + 2 * (length / 2) / C
+        expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
+        cutoff_times = np.arange(0.25, 5.25, 0.25) * expected_time
+        # END cutoff estimation
+        max_iter = 1e5
+        res = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for num_memories in memories_list:
+                num_calls = len(cutoff_times)
+                aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, cutoff_times, [num_memories] * num_calls)
+                res[num_memories] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            # pool.join()
 
-            output_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
-            assert_dir(output_path)
+            for num_memories in memories_list:
+                data_series = pd.Series(data=res[num_memories].get(), index=cutoff_times)
+                print("memories=%s finished after %.2f minutes." % (str(num_memories), (time() - start_time) / 60.0))
+                output_path = os.path.join(result_path, "%d_memories" % num_memories)
+                assert_dir(output_path)
+                data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
+                output_data = pd.DataFrame(data=result_list, index=cutoff_times, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
+                output_data.to_csv(os.path.join(output_path, "result.csv"))
 
-            np.savetxt(os.path.join(output_path, "length_list.txt"), length_list)
-            np.savetxt(os.path.join(output_path, "key_per_time_list.txt"), key_per_time_list)
-            np.savetxt(os.path.join(output_path, "key_per_resource_list.txt"), key_per_resource_list)
+        print("The whole run took %s seconds." % str(time() - start_time))
 
-    print("The whole run took %s seconds." % str(time() - start_time))
+    elif int(sys.argv[1]) == 3:
+        # fixed number of memories, variable cutoff_time
+        result_path = os.path.join("results", "multimemory_variant_fixed_mem")
+        num_processes = 32
+        num_memories = 400
+        length_list = np.arange(10000, 400000, 2500)
+        # BEGIN cutoff estimation
+        trial_time_manual = T_P + 2 * (length_list / 2) / C
+        expected_time = trial_time_manual / (ETA_TOT * np.exp(-(length_list / 2) / L_ATT))  # expected time ONE memory would take to have a successful pair
+        cutoff_multipliers = [0.001, 0.005, 0.010, 0.020, 0.030, 0.050, 0.100, 0.250, 0.500]
+
+        # END cutoff estimation
+        max_iter = 1e5
+        res = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for cutoff_multiplier in cutoff_multipliers:
+                num_calls = len(length_list)
+                aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_multiplier * expected_time, [num_memories] * num_calls)
+                res[cutoff_multiplier] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            # pool.join()
+
+            for cutoff_multiplier in cutoff_multipliers:
+                data_series = pd.Series(data=res[cutoff_multiplier].get(), index=length_list)
+                print("cutoff_multiplier=%s finished after %.2f minutes." % (str(cutoff_multiplier), (time() - start_time) / 60.0))
+                output_path = os.path.join(result_path, "%.3f_cutoff" % cutoff_multiplier)
+                assert_dir(output_path)
+                data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+                result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
+                output_data = pd.DataFrame(data=result_list, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
+                output_data.to_csv(os.path.join(output_path, "result.csv"))
+
+        print("The whole run took %s seconds." % str(time() - start_time))

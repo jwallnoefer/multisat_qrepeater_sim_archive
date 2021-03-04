@@ -488,6 +488,36 @@ class EventQueue(object):
         except IndexError:
             return None
 
+    def _insert_event(self, event):
+        """Insert event at appropriate position in the queue.
+
+        This uses bisection instead of sort to avoid needlessly constructing
+        (x.time, x.priority) for all events in the queue as would be done by
+        list.sort()
+        Insertion is done to the right of matching events.
+
+        Parameters
+        ----------
+        event : Event
+            The event that will be inserted.
+
+        Returns
+        -------
+        None
+
+        """
+        lo = 0
+        hi = len(self.queue)
+        x = (event.time, event.priority)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            mid_event = self.queue[mid]
+            if x < (mid_event.time, mid_event.priority):
+                hi = mid
+            else:
+                lo = mid + 1
+        self.queue.insert(lo, event)
+
     def add_event(self, event):
         """Add an event to the queue.
 
@@ -512,8 +542,7 @@ class EventQueue(object):
         if event.time < self.current_time:
             raise ValueError("EventQueue.add_event tried to schedule an event in the past.")
         event.event_queue = self
-        self.queue += [event]
-        self.queue.sort(key=lambda x: (x.time, x.priority))
+        self._insert_event(event)
 
     def resolve_next_event(self):
         """Remove the next scheduled event from the queue and resolve it.
