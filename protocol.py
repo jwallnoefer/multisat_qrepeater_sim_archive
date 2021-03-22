@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from events import SourceEvent
 from consts import SPEED_OF_LIGHT_IN_OPTICAL_FIBER as C
+from libs.aux_functions import distance
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -148,7 +149,7 @@ class TwoLinkProtocol(Protocol):
                     self.world.event_queue.queue))
 
     def _eval_pair(self, long_range_pair):
-        comm_distance = np.max([np.abs(self.station_central.position - self.station_A.position), np.abs(self.station_B.position - self.station_central.position)])
+        comm_distance = np.max([distance(self.station_central, self.station_A), distance(self.station_B, self.station_central)])
         comm_time = comm_distance / C
 
         self.time_list += [self.world.event_queue.current_time + comm_time]
