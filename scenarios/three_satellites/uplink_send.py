@@ -4,8 +4,69 @@ from world import World
 from protocol import Protocol
 from events import Event, DiscardQubitEvent, EntanglementSwappingEvent, SourceEvent
 from copy import copy
-from libs.aux_functions import distance
+from libs.aux_functions import apply_single_qubit_map, y_noise_channel, z_noise_channel, w_noise_channel, distance
 from consts import SPEED_OF_LIGHT_IN_VACCUM as C
+from consts import AVERAGE_EARTH_RADIUS as R_E
+from consts import ETA_ATM_PI_HALF_780_NM
+import libs.matrix as mat
+from functools import lru_cache
+from quantum_objects import SchedulingSource, Station
+from noise import NoiseModel, NoiseChannel
+
+
+def construct_dephasing_noise_channel(dephasing_time):
+    def lambda_dp(t):
+        return (1 - np.exp(-t / dephasing_time)) / 2
+
+    def dephasing_noise_channel(rho, t):
+        return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
+
+    return dephasing_noise_channel
+
+
+def construct_y_noise_channel(epsilon):
+    return lambda rho: y_noise_channel(rho=rho, epsilon=epsilon)
+
+
+def construct_w_noise_channel(epsilon):
+    return lambda rho: w_noise_channel(rho=rho, alpha=(1 - epsilon))
+
+
+def alpha_of_eta(eta, p_d):
+    return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
+
+
+def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius):
+    # calculated by simple geometry, because gaussian effects do not matter much
+    x = sender_aperture_radius + distance * np.tan(divergence_half_angle)
+    arriving_fraction = receiver_aperture_radius**2 / x**2
+    if arriving_fraction > 1:
+        arriving_fraction = 1
+    return arriving_fraction
+
+
+def eta_atm(elevation):
+    # eta of pi/2 to the power of csc(theta), equation (A4) in https://arxiv.org/abs/2006.10636
+    # eta of pi/2 (i.e. straight up) is ~0.8 for 780nm wavelength.
+    if elevation < 0:
+        return 0
+    return ETA_ATM_PI_HALF_780_NM**(1 / np.sin(elevation))
+
+
+def sat_dist_curved(ground_dist, h):
+    # ground dist refers to distance between station and the "shadow" of the satellite
+    alpha = ground_dist / R_E
+    L = np.sqrt(R_E**2 + (R_E + h)**2 - 2 * R_E * (R_E + h) * np.cos(alpha))
+    return L
+
+
+def elevation_curved(ground_dist, h):
+    # ground dist refers to distance between station and the "shadow" of the satellite
+    alpha = ground_dist / R_E
+    L = np.sqrt(R_E**2 + (R_E + h)**2 - 2 * R_E * (R_E + h) * np.cos(alpha))
+    beta = np.arcsin(R_E / L * np.sin(alpha))
+    gamma = np.pi - alpha - beta
+    return gamma - np.pi / 2
 
 
 class RepeatingEvent(Event):  # still an abstract class
@@ -28,7 +89,7 @@ class SendOnScheduleEvent(RepeatingEvent):
         self.station = station
         self.target_station = target_station
         self.channel_eta_func = channel_eta_func
-        super(RepeatingEvent, self).__init__(time=time, offset_time=offset_time, required_objects=[station], priority=priority, ignore_blocked=ignore_blocked)
+        super(SendOnScheduleEvent, self).__init__(time=time, offset_time=offset_time, required_objects=[station], priority=priority, ignore_blocked=ignore_blocked)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(time={self.time}, offset_time={self.offset_time}, station={self.station}, target_station={self.target_station}, channel_eta_func={self.channel_eta_func}, priority={self.priority}, ignore_blocked={self.ignore_blocked})"
@@ -70,12 +131,14 @@ class QubitArrivesAtStationEvent(Event):
 
 
 class UplinkSendProtocol(Protocol):
-    def __init__(self, world, stations, sources, send_time, channel_eta_func):
+    def __init__(self, world, stations, sources, send_interval, channel_eta_func):
         self.time_list = []
         self.state_list = []
+        self.resource_cost_max_list = []
+        self.resource_cost_add_list = []
         self.stations = stations
         self.sources = sources
-        self.send_time = send_time
+        self.send_interval = send_interval
         self.channel_eta_func = channel_eta_func
         super(UplinkSendProtocol, self).__init__(world=world)
 
@@ -90,6 +153,29 @@ class UplinkSendProtocol(Protocol):
         self.source_A, self.source_B = self.sources
         assert callable(getattr(self.source_A, "schedule_event", None))  # schedule_event is a required method for this protocol
         assert callable(getattr(self.source_B, "schedule_event", None))
+        # now fire the repeating events
+        left_event = SendOnScheduleEvent(time=self.world.event_queue.current_time,
+                                         offset_time=self.send_interval,
+                                         station=self.sat_left,
+                                         target_station=self.sat_central,
+                                         channel_eta_func=self.channel_eta_func)
+        right_event = SendOnScheduleEvent(time=self.world.event_queue.current_time,
+                                          offset_time=self.send_interval,
+                                          station=self.sat_left,
+                                          target_station=self.sat_central,
+                                          channel_eta_func=self.channel_eta_func)
+        self.world.event_queue.add_event(left_event)
+        self.world.event_queue.add_event(right_event)
+
+    def _eval_pair(self, long_range_pair):
+        comm_distance = np.max([distance(self.sat_central, self.station_A), distance(self.station_B, self.sat_central)])
+        comm_time = comm_distance / C
+
+        self.time_list += [self.world.event_queue.current_time + comm_time]
+        self.state_list += [long_range_pair.state]
+        self.resource_cost_max_list += [long_range_pair.resource_cost_max]
+        self.resource_cost_add_list += [long_range_pair.resource_cost_add]
+        return
 
     def _left_pairs_scheduled(self):
         return list(filter(lambda event: (isinstance(event, SourceEvent)
@@ -171,13 +257,182 @@ class UplinkSendProtocol(Protocol):
         # Central station will do swapping if two qubits arrive at the same time. We need a mechanism to figure out what "at the same time" means.
 
 
-def run():
-    # unpack params
-    # do setup
-    # start the repeating events off
-    # go
+def run(length, max_iter, params, send_interval, first_satellite_ground_dist_multiplier=0.25):
+    try:
+        P_LINK = params["P_LINK"]
+    except KeyError:
+        P_LINK = 1.0
+    try:
+        T_P = params["T_P"]  # preparation time
+    except KeyError:
+        T_P = 0
+    try:
+        T_DP = params["T_DP"]  # dephasing time
+    except KeyError:
+        T_DP = 1.0
+    try:
+        E_MA = params["E_MA"]  # misalignment error
+    except KeyError:
+        E_MA = 0
+    try:
+        P_D = params["P_D"]  # dark count probability
+    except KeyError:
+        P_D = 0
+    try:
+        LAMBDA_BSM = params["LAMBDA_BSM"]
+    except KeyError:
+        LAMBDA_BSM = 1
+    try:
+        ORBITAL_HEIGHT = params["ORBITAL_HEIGHT"]
+    except KeyError as e:
+        raise Exception('params["ORBITAL_HEIGHT"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        SENDER_APERTURE_RADIUS = params["SENDER_APERTURE_RADIUS"]
+    except KeyError as e:
+        raise Exception('params["SENDER_APERTURE_RADIUS"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        RECEIVER_APERTURE_RADIUS = params["RECEIVER_APERTURE_RADIUS"]
+    except KeyError as e:
+        raise Exception('params["RECEIVER_APERTURE_RADIUS"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        DIVERGENCE_THETA = params["DIVERGENCE_THETA"]
+    except KeyError as e:
+        raise Exception('params["DIVERGENCE_THETA"] is a mandatory argument').with_traceback(e.__traceback__)
 
+    def position_from_angle(radius, angle):
+        return radius * np.array([np.sin(angle), np.cos(angle)])
+
+    station_a_angle = 0
+    station_a_position = position_from_angle(R_E, station_a_angle)
+    first_satellite_angle = first_satellite_ground_dist_multiplier * length / R_E
+    first_satellite_position = position_from_angle(R_E + ORBITAL_HEIGHT, first_satellite_angle)
+    second_satellite_angle = length / 2 / R_E
+    second_satellite_position = position_from_angle(R_E + ORBITAL_HEIGHT, second_satellite_angle)
+    third_satellite_angle = (1 - first_satellite_ground_dist_multiplier) * length / R_E
+    third_satellite_position = position_from_angle(R_E + ORBITAL_HEIGHT, third_satellite_angle)
+    station_b_angle = length / R_E
+    station_b_position = position_from_angle(R_E, station_b_angle)
+    elevation_left = elevation_curved(ground_dist=first_satellite_ground_dist_multiplier * length, h=ORBITAL_HEIGHT)
+    arrival_chance_left = eta_atm(elevation_left) \
+                          * eta_dif(distance=distance(station_a_position, first_satellite_position),
+                                    divergence_half_angle=DIVERGENCE_THETA,
+                                    sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    elevation_right = elevation_curved(ground_dist=first_satellite_ground_dist_multiplier * length, h=ORBITAL_HEIGHT)
+    arrival_chance_right = eta_atm(elevation_right) \
+                           * eta_dif(distance=distance(station_b_position, third_satellite_position),
+                                     divergence_half_angle=DIVERGENCE_THETA,
+                                     sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                                     receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+
+    def eta_channel_func(dist):
+        return eta_dif(distance=dist,
+                       divergence_half_angle=DIVERGENCE_THETA,
+                       sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                       receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+
+    def imperfect_bsm_err_func(four_qubit_state):
+        return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+
+    # def time_distribution_left(source):
+    #     distribution_distance = distance(source, source.target_stations[0])  # here the first station is the ground station
+    #     distribution_time = distribution_distance / C
+    #     comm_distance = distance(source.target_stations[0], source.target_stations[1])  # ground station needs to communicate with middle satellite because that is where the memories are
+    #     # careful: doesn't account for the case where memory satellite is below the horizon
+    #     comm_time = comm_distance / C
+    #     trial_time = T_P + distribution_time + comm_time
+    #     eta = P_LINK * arrival_chance_left
+    #     eta_effective = 1 - (1 - eta) * (1 - P_D)**2
+    #     random_num = np.random.geometric(eta_effective)
+    #     return random_num * trial_time, random_num
+    #
+    # def time_distribution_right(source):
+    #     distribution_distance = distance(source, source.target_stations[1])  # here the second station is the ground station
+    #     distribution_time = distribution_distance / C
+    #     comm_distance = distance(source.target_stations[0], source.target_stations[1])  # ground station needs to communicate with middle satellite because that is where the memories are
+    #     # careful: doesn't account for the case where memory satellite is below the horizon
+    #     comm_time = comm_distance / C
+    #     trial_time = T_P + distribution_time + comm_time
+    #     eta = P_LINK * arrival_chance_right
+    #     eta_effective = 1 - (1 - eta) * (1 - P_D)**2
+    #     random_num = np.random.geometric(eta_effective)
+    #     return random_num * trial_time, random_num
+    #
+    # @lru_cache()
+    # def state_generation_left(source):
+    #     state = np.dot(mat.phiplus, mat.H(mat.phiplus))
+    #     ground_station = source.target_stations[0]
+    #     ground_station_distance = distance(source, ground_station)  # here the second station is the ground station
+    #     ground_station_time = ground_station_distance / C
+    #     satellite = source.target_stations[1]
+    #     satellite_distance = distance(source, satellite)
+    #     satellite_time = satellite_distance / C
+    #     comm_distance = distance(ground_station, satellite)  # ground station needs to communicate with middle satellite because that is where the memories are
+    #     # careful: doesn't account for the case where memory satellite is below the horizon
+    #     comm_time = comm_distance / C
+    #     storage_time = ground_station_time + comm_time - satellite_time
+    #     if satellite.memory_noise is not None:
+    #         state = apply_single_qubit_map(map_func=satellite.memory_noise, qubit_index=1, rho=state, t=storage_time)
+    #     if ground_station.dark_count_probability is not None:
+    #         eta = P_LINK * arrival_chance_left
+    #         state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=0, rho=state, alpha=alpha_of_eta(eta=eta, p_d=ground_station.dark_count_probability))
+    #     return state
+    #
+    # @lru_cache()
+    # def state_generation_right(source):
+    #     state = np.dot(mat.phiplus, mat.H(mat.phiplus))
+    #     ground_station = source.target_stations[1]
+    #     ground_station_distance = distance(source, ground_station)  # here the second station is the ground station
+    #     ground_station_time = ground_station_distance / C
+    #     satellite = source.target_stations[0]
+    #     satellite_distance = distance(source, satellite)
+    #     satellite_time = satellite_distance / C
+    #     comm_distance = distance(ground_station, satellite)  # ground station needs to communicate with middle satellite because that is where the memories are
+    #     # careful: doesn't account for the case where memory satellite is below the horizon
+    #     comm_time = comm_distance / C
+    #     storage_time = ground_station_time + comm_time - satellite_time
+    #     if satellite.memory_noise is not None:
+    #         state = apply_single_qubit_map(map_func=satellite.memory_noise, qubit_index=0, rho=state, t=storage_time)
+    #     if ground_station.dark_count_probability is not None:
+    #         eta = P_LINK * arrival_chance_right
+    #         state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=1, rho=state, alpha=alpha_of_eta(eta=eta, p_d=ground_station.dark_count_probability))
+    #     return state
+
+    misalignment_noise = NoiseChannel(n_qubits=1, channel_function=construct_y_noise_channel(epsilon=E_MA))
+
+    # do setup
+    world = World()
+    station_A = Station(world, position=station_a_position, memory_noise=None,
+                        creation_noise_channel=misalignment_noise,
+                        dark_count_probability=P_D
+                        )
+    sat_left = Station(world, position=first_satellite_position, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP))
+    sat_central = Station(world, position=second_satellite_position,
+                          memory_noise=None,
+                          memory_cutoff_time=1e-6,
+                          BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func))
+                          )
+    sat_right = Station(world, position=third_satellite_position, memory_noise=construct_dephasing_noise_channel(dephasing_time=T_DP))
+    station_B = Station(world, position=station_b_position, memory_noise=None,
+                        creation_noise_channel=misalignment_noise,
+                        dark_count_probability=P_D
+                        )
+
+    source_A = SchedulingSource(world, position=first_satellite_position, target_stations=[station_A, sat_left], time_distribution=time_distribution_left, state_generation=state_generation_left)
+    source_B = SchedulingSource(world, position=third_satellite_position, target_stations=[sat_right, station_B], time_distribution=time_distribution_right, state_generation=state_generation_right)
+    protocol = UplinkSendProtocol(world, stations=[station_A, sat_left, sat_central, sat_right, station_B], sources=[source_A, source_B], send_interval=send_interval, channel_eta_func=eta_channel_func)
+    protocol.setup()  # this also starts the repeating send events off
+
+    import code
+    code.interact(local=locals())
+
+    while len(protocol.time_list) < max_iter:
+        protocol.check()
+        world.event_queue.resolve_next_event()
+
+    return protocol
 
 
 if __name__ == "__main__":
-    pass
+    test_params = {"P_LINK": 0.56, "T_DP": 0.1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}
+    p = run(length=200e3, max_iter=10, params=test_params, send_interval=0.1, first_satellite_ground_dist_multiplier=0.25)

@@ -120,7 +120,7 @@ class MultiMemoryProtocol(TwoLinkProtocol):
 
 def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satellite_ground_dist_multiplier=0.25):
     # unpack the parameters
-    print(length)
+    # print(length)
     try:
         P_LINK = params["P_LINK"]
     except KeyError:
