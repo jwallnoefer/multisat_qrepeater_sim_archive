@@ -183,6 +183,9 @@ class SourceEvent(Event):
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, source=%s, initial_state=%s)" % (str(self.time), str(self.source), repr(self.initial_state))
 
+    def __str__(self):
+        return f"{self.__class__.__name__} at time={self.time}, generating a state between stations {self.source.target_stations[0].label} and {self.source.target_stations[1].label}."
+
     def _main_effect(self):
         """Resolve the event.
 
@@ -224,6 +227,9 @@ class EntanglementSwappingEvent(Event):
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, pairs=%s, error_func=%s)" % (str(self.time), str(self.pairs), repr(self.error_func))
+
+    def __str__(self):
+        return f"{self.__class__.__name__} at time={self.time} using pairs {*[x.label for x in self.pairs],}"
 
     def _main_effect(self):
         """Resolve the event.
@@ -314,6 +320,9 @@ class DiscardQubitEvent(Event):
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, qubit=%s)" % (str(self.time), str(self.qubit))
 
+    def __str__(self):
+        return f"{self.__class__.__name__} at time={self.time} to discard {self.qubit.label}."
+
     def _main_effect(self):
         """Discards the qubit and associated pair, if the qubit still exists.
 
@@ -371,6 +380,9 @@ class EntanglementPurificationEvent(Event):
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, pairs=%s, protocol=%s)" % (repr(self.time), repr(self.pairs), repr(self.protocol))
+
+    def __str__(self):
+        return f"{self.__class__.__name__} at time={self.time} using pairs {*[x.label for x in self.pairs],} with protocol {self.protocol}."
 
     def _main_effect(self):
         """Probabilistically performs the entanglement purification protocol.
@@ -444,6 +456,9 @@ class UnblockEvent(Event):
 
     def __repr__(self):
         return self.__class__.__name__ + "(time=%s, quantum_objects=%s, priority=%s)" % (repr(self.time), repr(self.quantum_objects), repr(self.priority))
+
+    def __str__(self):
+        return f"{self.__class__.__name__} at time={self.time} for objects {*[x.label for x in self.quantum_objects],}."
 
     def _main_effect(self):
         for quantum_object in self.quantum_objects:
