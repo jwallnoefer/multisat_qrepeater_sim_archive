@@ -23,10 +23,15 @@ class WorldObject(ABC):
     ----------
     world : World
         This WorldObject is an object in this world.
+    label : str or None
+        A string to represent this object in a human-readable way.
+        If None, a default string will be used. Default: None
 
     Attributes
     ----------
     world : World
+    label : str
+        A human-readable label for the object.
     event_queue : EventQueue
     last_updated : scalar
     required_by_events : list of Events
@@ -35,12 +40,19 @@ class WorldObject(ABC):
 
     """
 
-    def __init__(self, world):
+    def __init__(self, world, label=None):
         self.world = world
-        self.world.register_world_object(self)
+        if label is None:
+            self.label = self.world.register_world_object(self)
+        else:
+            self.label = label
+            self.world.register_world_object(self)
         self.last_updated = self.event_queue.current_time
         self.required_by_events = []
         self.is_blocked = False
+
+    def __str__(self):
+        return self.label
 
     def destroy(self):
         """Remove this WorldObject from the world."""
@@ -91,6 +103,8 @@ class Qubit(WorldObject):
     unresolved_noise : NoiseChannel or None
         Noise that affected the qubit, but has not been applied to the state
         yet. None means nothing is unresolved. Default: None
+    label : str or None
+        Optionally, provide a custom label.
 
     Attributes
     ----------
@@ -105,14 +119,14 @@ class Qubit(WorldObject):
     """
 
     # station should also know about which qubits are at its location
-    def __init__(self, world, station, unresolved_noise=None):
+    def __init__(self, world, station, unresolved_noise=None, label=None):
         self.station = station
         self.unresolved_noise = unresolved_noise
-        super(Qubit, self).__init__(world)
+        super(Qubit, self).__init__(world=world, label=label)
         self.pair = None
 
     def __str__(self):
-        return "Qubit at station %s, part of pair %s." % (str(self.station), str(self.pair))
+        return f"{self.label} at station {self.station.label}, part of pair {self.pair.label}."
 
     @property
     def type(self):
@@ -141,6 +155,8 @@ class Pair(WorldObject):
     initial_cost_max : scalar or None
         Initial resource cost (in max channel uses). Can be left None if
         tracking is not done. Default: None
+    label : str or None
+        Optionally, provide a custom label.
 
     Attributes
     ----------
@@ -163,7 +179,7 @@ class Pair(WorldObject):
 
     """
 
-    def __init__(self, world, qubits, initial_state, initial_cost_add=None, initial_cost_max=None):
+    def __init__(self, world, qubits, initial_state, initial_cost_add=None, initial_cost_max=None, label=None):
         # maybe add a check that qubits are always in the same order?
         self.qubits = qubits
         self.state = initial_state
@@ -194,7 +210,10 @@ class Pair(WorldObject):
             self.state = self.qubit2.unresolved_noise.apply_to(rho=self.state, qubit_indices=[1])
             self.qubit2.unresolved_noise = None
 
-        super(Pair, self).__init__(world)
+        super(Pair, self).__init__(world=world, label=label)
+
+    def __str__(self):
+        return f"{self.label} with qubits {*[x.label for x in self.qubits],} between stations {*[x.station.label for x in self.qubits],}"
 
     @property
     def type(self):
@@ -285,6 +304,8 @@ class Station(WorldObject):
         may use this. Default: 0
     id : int or None
         [DEPRECATED: Do not use!] Label for the station. Default: None
+    label : str or None
+        Optionally, provide a custom label.
 
     Attributes
     ----------
@@ -309,7 +330,7 @@ class Station(WorldObject):
     def __init__(self, world, position, memory_noise=None,
                  memory_cutoff_time=None, BSM_noise_model=NoiseModel(),
                  creation_noise_channel=None, dark_count_probability=0,
-                 id=None):
+                 id=None, label=None):
         self.id = id
         self.position = position
         self.qubits = []
@@ -319,10 +340,10 @@ class Station(WorldObject):
         self.BSM_noise_model = BSM_noise_model
         self.creation_noise_channel = creation_noise_channel
         self.dark_count_probability = dark_count_probability
-        super(Station, self).__init__(world)
+        super(Station, self).__init__(world=world, label=label)
 
     def __str__(self):
-        return "Station with id %s at position %s." % (str(self.id), str(self.position))
+        return f"{self.label} at position {self.position}."
 
     @property
     def type(self):
@@ -366,6 +387,8 @@ class Source(WorldObject):
     target_stations : list of Stations
         The two stations the source to which the source sends the entangled
         pairs, usually the neighboring repeater stations.
+    label : str or None
+        Optionally, provide a custom label.
 
     Attributes
     ----------
@@ -379,10 +402,13 @@ class Source(WorldObject):
 
     """
 
-    def __init__(self, world, position, target_stations):
+    def __init__(self, world, position, target_stations, label=None):
         self.position = position
         self.target_stations = target_stations
-        super(Source, self).__init__(world)
+        super(Source, self).__init__(world=world, label=label)
+
+    def __str__(self):
+        return f"{self.label} generating states between stations {*[x.label for x in self.target_stations],}."
 
     @property
     def type(self):
@@ -426,13 +452,15 @@ class SchedulingSource(Source):
     state_generation : callable
         Should return (possibly probabilistically) the density matrix of the
         pair generated by the source. Takes the source as input.
+    label : str or None
+        Optionally, provide a custom label.
 
     """
 
-    def __init__(self, world, position, target_stations, time_distribution, state_generation):
+    def __init__(self, world, position, target_stations, time_distribution, state_generation, label=None):
         self.time_distribution = time_distribution
         self.state_generation = state_generation
-        super(SchedulingSource, self).__init__(world, position, target_stations)
+        super(SchedulingSource, self).__init__(world, position, target_stations, label)
 
     def schedule_event(self):
         time_delay, times_tried = self.time_distribution(source=self)
