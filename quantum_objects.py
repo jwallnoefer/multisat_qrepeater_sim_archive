@@ -126,7 +126,7 @@ class Qubit(WorldObject):
         self.pair = None
 
     def __str__(self):
-        return f"{self.label} at station {self.station.label}, part of pair {self.pair.label}."
+        return f"{self.label} at station {self.station.label if self.station else self.station}, part of pair {self.pair.label if self.pair else self.pair}."
 
     @property
     def type(self):
@@ -213,7 +213,7 @@ class Pair(WorldObject):
         super(Pair, self).__init__(world=world, label=label)
 
     def __str__(self):
-        return f"{self.label} with qubits {*[x.label for x in self.qubits],} between stations {*[x.station.label for x in self.qubits],}"
+        return f"{self.label} with qubits " + ", ".join([x.label for x in self.qubits]) + " between stations " + ", ".join([x.station.label if x.station else str(x.station) for x in self.qubits]) + "."
 
     @property
     def type(self):
@@ -408,7 +408,7 @@ class Source(WorldObject):
         super(Source, self).__init__(world=world, label=label)
 
     def __str__(self):
-        return f"{self.label} generating states between stations {*[x.label for x in self.target_stations],}."
+        return f"{self.label} generating states between stations " + ", ".join([x.label for x in self.target_stations]) + "."
 
     @property
     def type(self):
