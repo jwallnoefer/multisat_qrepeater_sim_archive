@@ -11,6 +11,8 @@ from consts import SPEED_OF_LIGHT_IN_VACCUM as C
 from functools import lru_cache
 from noise import NoiseModel, NoiseChannel
 from quantum_objects import SchedulingSource, Station
+from functools import lru_cache
+import pandas as pd
 
 
 def construct_dephasing_noise_channel(dephasing_time):
@@ -92,6 +94,12 @@ class FourlinkProtocol(Protocol):
             assert callable(getattr(source, "schedule_event", None))# schedule_event is a required method for this protocol
         self.link_stations = [[self.stations[i], self.stations[i+1]] for i in range(4)]
 
+    @property
+    def data(self):
+        return pd.DataFrame({"time": self.time_list, "state": self.state_list,
+                             "resource_cost_max": self.resource_cost_max_list,
+                             "resource_cost_add": self.resource_cost_add_list})
+
     def _get_pairs_between_stations(self, station1, station2):
         try:
             pairs = self.world.world_objects["Pair"]
@@ -127,18 +135,17 @@ class FourlinkProtocol(Protocol):
     #             self.source_link1.schedule_event()
 
     def check(self):
-        pairs_links = [self._get_pairs_between_stations(*stations) for stations in self.link_stations]
-        num_pairs_links = [len(pairs_link) for pairs_link in pairs_links]
-        num_pairs_scheduled_links = [len(self._get_pairs_scheduled(*stations)) for stations in self.link_stations]
-        links_used = [num_pairs_link + num_pairs_scheduled_link for num_pairs_link, num_pairs_scheduled_link in zip(num_pairs_links, num_pairs_scheduled_links)]
-        for link_used, source in zip(links_used, self.sources):
-            if link_used < self.num_memories:
-                for _ in range(self.num_memories - link_used):
-                    source.schedule_event()
-        #Swapping left:
-        if num_pairs_links[0] != 0 and num_pairs_links[1] != 0:
-            num_swappings = min(num_pairs_links[0], num_pairs_links[1])
-            for left_pair, right_pair in zip(pairs_links[0], pairs_links[1]):
+        free_memories = self.memory_check_global()
+        for (station_left, station_right), source in zip(self.link_stations, self.sources):
+            links_free = np.min([free_memories[station_left][1], free_memories[station_right][0]])
+            for _ in range(links_free):
+                source.schedule_event()
+
+        #Swapping loop
+        for station in self.stations[1:-1]:
+            left_pairs, right_pairs = self.pairs_at_station(station)
+            num_swappings = min(len(left_pairs), len(right_pairs))
+            for left_pair, right_pair in zip(left_pairs[:num_swappings], right_pairs[:num_swappings]):
                 # assert that we do not schedule the same swapping more than once
                 try:
                     next(filter(lambda event: (isinstance(event, EntanglementSwappingEvent)
@@ -152,44 +159,7 @@ class FourlinkProtocol(Protocol):
                 if not is_already_scheduled:
                     ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair])
                     self.world.event_queue.add_event(ent_swap_event)
-        #Swapping right:
-        if num_pairs_links[2] != 0 and num_pairs_links[3] != 0:
-            num_swappings = min(num_pairs_links[2], num_pairs_links[3])
-            for left_pair, right_pair in zip(pairs_links[2], pairs_links[3]):
-                # assert that we do not schedule the same swapping more than once
-                try:
-                    next(filter(lambda event: (isinstance(event, EntanglementSwappingEvent)
-                                               and (left_pair in event.pairs)
-                                               and (right_pair in event.pairs)
-                                               ),
-                                self.world.event_queue.queue))
-                    is_already_scheduled = True
-                except StopIteration:
-                    is_already_scheduled = False
-                if not is_already_scheduled:
-                    ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair])
-                    self.world.event_queue.add_event(ent_swap_event)
-        #Swapping central:
-        left_pairs = self._get_pairs_between_stations(self.station_ground_left, self.sat_central)
-        right_pairs = self._get_pairs_between_stations(self.sat_central, self.station_ground_right)
-        num_left_pairs = len(left_pairs)
-        num_right_pairs = len(right_pairs)
-        if num_left_pairs!= 0 and num_right_pairs != 0:
-            num_swappings = min(num_left_pairs, num_right_pairs)
-            for left_pair, right_pair in zip(left_pairs, right_pairs):
-                # assert that we do not schedule the same swapping more than once
-                try:
-                    next(filter(lambda event: (isinstance(event, EntanglementSwappingEvent)
-                                               and (left_pair in event.pairs)
-                                               and (right_pair in event.pairs)
-                                               ),
-                                self.world.event_queue.queue))
-                    is_already_scheduled = True
-                except StopIteration:
-                    is_already_scheduled = False
-                if not is_already_scheduled:
-                    ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair])
-                    self.world.event_queue.add_event(ent_swap_event)
+
         #Evaluate long range pairs
         long_range_pairs = self._get_pairs_between_stations(self.station_ground_left, self.station_ground_right)
         if long_range_pairs:
@@ -200,6 +170,39 @@ class FourlinkProtocol(Protocol):
                 long_range_pair.qubits[1].destroy()
                 long_range_pair.destroy()
             self.check()
+
+    def pairs_at_station(self, station):
+        station_index = self.stations.index(station)
+        pairs_left = []
+        pairs_right = []
+        for qubit in station.qubits:
+            pair = qubit.pair
+            qubit_list = list(pair.qubits)
+            qubit_list.remove(qubit)
+            qubit_neighbor = qubit_list[0]
+            if self.stations.index(qubit_neighbor.station) < station_index:
+                pairs_left += [pair]
+            else:
+                pairs_right += [pair]
+        return (pairs_left, pairs_right)
+
+
+    def memory_check(self, station):
+        station_index = self.stations.index(station)
+        free_memories_left = self.num_memories
+        free_memories_right = self.num_memories
+        pairs_left, pairs_right = self.pairs_at_station(station)
+        free_memories_left -= len(pairs_left)
+        free_memories_right -= len(pairs_right)
+        free_memories_left -= len(self._get_pairs_scheduled(self.stations[station_index-1], station))
+        free_memories_right -= len(self._get_pairs_scheduled(station, self.stations[station_index+1]))
+        return (free_memories_left, free_memories_right)
+
+    def memory_check_global(self):
+        free_memories = {station: self.memory_check(station) for station in self.stations[1:-1]}
+        free_memories[self.station_ground_left] = (self.num_memories, self.num_memories)
+        free_memories[self.station_ground_right] = (self.num_memories, self.num_memories)
+        return free_memories
 
 if __name__ == "__main__":
     length = 200e3
@@ -266,6 +269,7 @@ if __name__ == "__main__":
     time_distribution_link4 = generate_time_distribution(arrival_chance_link4)
 
     def generate_state_generation(arrival_chance):
+        @lru_cache()
         def state_generation(source):
             state = np.dot(mat.phiplus, mat.H(mat.phiplus))
             comm_distance = np.max([distance(source, source.target_stations[0]), distance(source.target_stations[1], source)])
@@ -284,18 +288,52 @@ if __name__ == "__main__":
     state_generation_link3 = generate_state_generation(arrival_chance_link3)
     state_generation_link4 = generate_state_generation(arrival_chance_link4)
 
+    misalignment_noise = NoiseChannel(n_qubits=1, channel_function=construct_y_noise_channel(epsilon=E_MA))
+
+    def imperfect_bsm_err_func(four_qubit_state):
+        return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
+
+
     world = World()
 
-    station_ground_left = Station(world, position = station_a_position)
-    station_sat_left = Station(world, position = first_satellite_position)
-    station_sat_central = Station(world, position = second_satellite_position)
-    station_sat_right = Station(world, position = third_satellite_position)
-    station_ground_right = Station(world, position = station_b_position)
+    station_ground_left = Station(world, position = station_a_position,
+                                  dark_count_probability=P_D,
+                                  creation_noise_channel=misalignment_noise)
+    station_sat_left = Station(world, position = first_satellite_position,
+                               memory_cutoff_time=T_DP / 2,
+                               memory_noise = construct_dephasing_noise_channel(T_DP),
+                               BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func)
+                              )
+    station_sat_central = Station(world, position = second_satellite_position,
+                                  memory_cutoff_time=T_DP / 2,
+                                  memory_noise = construct_dephasing_noise_channel(T_DP),
+                                  BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func)
+                                 )
+    station_sat_right = Station(world, position = third_satellite_position,
+                                memory_cutoff_time=T_DP / 2,
+                                memory_noise = construct_dephasing_noise_channel(T_DP),
+                                BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func)
+                               )
+    station_ground_right = Station(world, position = station_b_position,
+                                   dark_count_probability=P_D,
+                                   creation_noise_channel=misalignment_noise)
 
-    source_sat_left1 = SchedulingSource(world, position = first_satellite_position, target_stations = [station_ground_left, station_sat_left], time_distribution = time_distribution_link1, state_generation = state_generation_link1)
-    source_sat_left2 = SchedulingSource(world, position = first_satellite_position, target_stations = [station_sat_left, station_sat_central], time_distribution = time_distribution_link2, state_generation = state_generation_link2)
-    source_sat_right1 = SchedulingSource(world, position = third_satellite_position, target_stations = [station_sat_central, station_sat_right], time_distribution = time_distribution_link3, state_generation = state_generation_link3)
-    source_sat_right2 = SchedulingSource(world, position = third_satellite_position, target_stations = [station_sat_right, station_ground_right], time_distribution = time_distribution_link4, state_generation = state_generation_link4)
+    source_sat_left1 = SchedulingSource(world, position = first_satellite_position,
+                                        target_stations = [station_ground_left, station_sat_left],
+                                        time_distribution = time_distribution_link1,
+                                        state_generation = state_generation_link1)
+    source_sat_left2 = SchedulingSource(world, position = first_satellite_position,
+                                        target_stations = [station_sat_left, station_sat_central],
+                                        time_distribution = time_distribution_link2,
+                                        state_generation = state_generation_link2)
+    source_sat_right1 = SchedulingSource(world, position = third_satellite_position,
+                                         target_stations = [station_sat_central, station_sat_right],
+                                         time_distribution = time_distribution_link3,
+                                         state_generation = state_generation_link3)
+    source_sat_right2 = SchedulingSource(world, position = third_satellite_position,
+                                         target_stations = [station_sat_right, station_ground_right],
+                                         time_distribution = time_distribution_link4,
+                                         state_generation = state_generation_link4)
 
     protocol = FourlinkProtocol(world, num_memories = 2, stations = [station_ground_left, station_sat_left, station_sat_central, station_sat_right, station_ground_right], sources = [source_sat_left1 , source_sat_left2, source_sat_right1, source_sat_right2])
     protocol.setup()
