@@ -43,22 +43,21 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
     return p.data
 
 
-if __name__ == "main":
-    length_list = np.linspace(0, 3600e3, num=4)
-    num_memories = 10
-    max_iter = 10
+if __name__ == "__main__":
+    length_list = np.linspace(0, 3600e3, num=96)
+    num_memories = 1000
+    max_iter = 1e5
     cutoff_multiplier = 0.1
-    num_processes = 2
+    num_processes = 32
     first_satellite_ground_dist_multiplier = 0
     num_calls = len(length_list)
-    aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [first_satellite_ground_dist_multiplier] * num_calls)
+    aux_list = zip(length_list, [max_iter] * num_calls, [base_params] * num_calls, [cutoff_multiplier * base_params["T_DP"]] * num_calls, [num_memories] * num_calls, [first_satellite_ground_dist_multiplier] * num_calls)
     with Pool(num_processes) as pool:
         result = pool.starmap_async(do_the_thing, aux_list)
         pool.close()
         actual_result = pd.Series(result.get(), index=length_list)
         evaluated_result = [standard_bipartite_evaluation(df) for df in actual_result]
-        output = pd.DataFrame(data=result_list, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
-    print(output)
+        output = pd.DataFrame(data=evaluated_result, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
     plt.scatter(output.index, output["key_per_time"])
     plt.yscale("log")
     plt.grid()
