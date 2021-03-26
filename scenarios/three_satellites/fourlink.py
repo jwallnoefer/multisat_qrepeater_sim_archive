@@ -204,19 +204,49 @@ class FourlinkProtocol(Protocol):
         free_memories[self.station_ground_right] = (self.num_memories, self.num_memories)
         return free_memories
 
-if __name__ == "__main__":
-    length = 200e3
-    P_LINK = 1
-    T_P = 0
-    T_DP = 1.0
-    E_MA = 0
-    P_D = 0
-    LAMBDA_BSM = 1
-    ORBITAL_HEIGHT = 400e3
-    SENDER_APERTURE_RADIUS = 0.15
-    RECEIVER_APERTURE_RADIUS = 0.50
-    DIVERGENCE_THETA = 1e-6
-    first_satellite_ground_dist_multiplier = 0.25
+def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satellite_ground_dist_multiplier=0.25):
+    # unpack the parameters
+    # print(length)
+    try:
+        P_LINK = params["P_LINK"]
+    except KeyError:
+        P_LINK = 1.0
+    try:
+        T_P = params["T_P"]  # preparation time
+    except KeyError:
+        T_P = 0
+    try:
+        T_DP = params["T_DP"]  # dephasing time
+    except KeyError:
+        T_DP = 1.0
+    try:
+        E_MA = params["E_MA"]  # misalignment error
+    except KeyError:
+        E_MA = 0
+    try:
+        P_D = params["P_D"]  # dark count probability
+    except KeyError:
+        P_D = 0
+    try:
+        LAMBDA_BSM = params["LAMBDA_BSM"]
+    except KeyError:
+        LAMBDA_BSM = 1
+    try:
+        ORBITAL_HEIGHT = params["ORBITAL_HEIGHT"]
+    except KeyError as e:
+        raise Exception('params["ORBITAL_HEIGHT"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        SENDER_APERTURE_RADIUS = params["SENDER_APERTURE_RADIUS"]
+    except KeyError as e:
+        raise Exception('params["SENDER_APERTURE_RADIUS"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        RECEIVER_APERTURE_RADIUS = params["RECEIVER_APERTURE_RADIUS"]
+    except KeyError as e:
+        raise Exception('params["RECEIVER_APERTURE_RADIUS"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        DIVERGENCE_THETA = params["DIVERGENCE_THETA"]
+    except KeyError as e:
+        raise Exception('params["DIVERGENCE_THETA"] is a mandatory argument').with_traceback(e.__traceback__)
 
     def position_from_angle(radius, angle):
         return radius * np.array([np.sin(angle), np.cos(angle)])
@@ -300,19 +330,19 @@ if __name__ == "__main__":
                                   dark_count_probability=P_D,
                                   creation_noise_channel=misalignment_noise)
     station_sat_left = Station(world, position = first_satellite_position,
-                               memory_cutoff_time=T_DP / 2,
+                               memory_cutoff_time=cutoff_time,
                                memory_noise = construct_dephasing_noise_channel(T_DP),
-                               BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func)
+                               BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func))
                               )
     station_sat_central = Station(world, position = second_satellite_position,
-                                  memory_cutoff_time=T_DP / 2,
+                                  memory_cutoff_time=cutoff_time,
                                   memory_noise = construct_dephasing_noise_channel(T_DP),
-                                  BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func)
+                                  BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func))
                                  )
     station_sat_right = Station(world, position = third_satellite_position,
-                                memory_cutoff_time=T_DP / 2,
+                                memory_cutoff_time=cutoff_time,
                                 memory_noise = construct_dephasing_noise_channel(T_DP),
-                                BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func)
+                                BSM_noise_model=NoiseModel(channel_before=NoiseChannel(n_qubits=4, channel_function=imperfect_bsm_err_func))
                                )
     station_ground_right = Station(world, position = station_b_position,
                                    dark_count_probability=P_D,
@@ -335,9 +365,15 @@ if __name__ == "__main__":
                                          time_distribution = time_distribution_link4,
                                          state_generation = state_generation_link4)
 
-    protocol = FourlinkProtocol(world, num_memories = 2, stations = [station_ground_left, station_sat_left, station_sat_central, station_sat_right, station_ground_right], sources = [source_sat_left1 , source_sat_left2, source_sat_right1, source_sat_right2])
+    protocol = FourlinkProtocol(world, num_memories , stations = [station_ground_left, station_sat_left, station_sat_central, station_sat_right, station_ground_right], sources = [source_sat_left1 , source_sat_left2, source_sat_right1, source_sat_right2])
     protocol.setup()
 
-    while len(protocol.time_list) < 100:
+    while len(protocol.time_list) < max_iter:
         protocol.check()
         world.event_queue.resolve_next_event()
+
+    return protocol
+
+if __name__ == "__main__":
+    p = run(length=200e3, max_iter=100, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=0)
+    print(p.data)
