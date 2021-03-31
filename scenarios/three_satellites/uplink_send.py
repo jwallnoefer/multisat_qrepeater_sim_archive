@@ -208,7 +208,7 @@ class UplinkSendProtocol(Protocol):
             pairs = []
         return list(filter(lambda pair: pair.is_between_stations(self.station_A, self.sat_central), pairs))
 
-    def _rigth_pairs_swap_ready(self):
+    def _right_pairs_swap_ready(self):
         try:
             pairs = self.world.world_objects["Pair"]
         except KeyError:
