@@ -125,6 +125,50 @@ def standard_bipartite_evaluation(data_frame, err_corr_ineff=1):
     return [fidelity, fidelity_std, key_per_time, key_per_time_std, key_per_resource, key_per_resource_std]
 
 
+def save_result(data_series, output_path, mode="write"):
+    """Evaluate and save data in a standardized way.
+
+    Parameters
+    ----------
+    data_series : pandas.Series
+        A Series of pandas.DataFrame retrieved via protocol.data,
+        index should be the x-axis of the corresponding plot.
+    output_path : str
+        Results are written to this path..
+    mode : {"write", "w", "append", "a"}
+        If "write" or "w" overwrites existing results.
+        If "append" or "a" will look for existing results and append the results
+        if there are any.
+
+    Returns
+    -------
+    None
+
+    """
+    if mode in ["write", "w"]:
+        append_mode = False
+    elif mode in ["append", "a"]:
+        append_mode = True
+    else:
+        raise ValueError(f"save_result does not support mode {mode}, please choose either 'write' or 'append'")
+    assert_dir(output_path)
+    result_list = [standard_bipartite_evaluation(data_frame=df) for df in data_series]
+    output_data = pd.DataFrame(data=result_list, index=data_series.index, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
+    if append_mode:
+        try:
+            existing_series = pd.read_pickle(os.path.join(output_path, "raw_data.bz2"))
+            data_series = existing_series.append(data_series)
+        except FileNotFoundError:
+            pass
+        try:
+            existing_data = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+            output_data = pd.concat([existing_data, output_data])
+        except FileNotFoundError:
+            pass
+    data_series.to_pickle(os.path.join(output_path, "raw_data.bz2"))
+    output_data.to_csv(os.path.join(output_path, "result.csv"))
+
+
 def assert_dir(path):
     """Check if `path` exists, and create it if it doesn't.
 
