@@ -1,6 +1,6 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.three_satellites.twolink_downlink import run, sat_dist_curved, elevation_curved
-from libs.aux_functions import assert_dir, standard_bipartite_evaluation
+from libs.aux_functions import assert_dir, standard_bipartite_evaluation, save_result
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
@@ -24,7 +24,7 @@ ETA_DET = 0.7  # detector efficiency
 ORBITAL_HEIGHT = 400e3
 SENDER_APERTURE_RADIUS = 0.15
 RECEIVER_APERTURE_RADIUS = 0.50
-DIVERGENCE_THETA = 10e-6
+DIVERGENCE_THETA = 2e-6
 
 P_LINK = ETA_MEM * ETA_DET
 base_params = {"P_LINK": P_LINK,
@@ -39,26 +39,29 @@ base_params = {"P_LINK": P_LINK,
                "DIVERGENCE_THETA": DIVERGENCE_THETA}
 
 def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_satellite_ground_dist_multiplier):
+    np.random.seed()
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=first_satellite_ground_dist_multiplier)
     return p.data
 
 
 if __name__ == "__main__":
+    result_path = os.path.join("results", "three_satellites", "fourlink")
     length_list = np.linspace(0, 3600e3, num=96)
     num_memories = 1000
-    max_iter = 1e5
+    max_iter = 1e3
     cutoff_multiplier = 0.1
     num_processes = 32
-    first_satellite_ground_dist_multiplier = 0
-    num_calls = len(length_list)
-    aux_list = zip(length_list, [max_iter] * num_calls, [base_params] * num_calls, [cutoff_multiplier * base_params["T_DP"]] * num_calls, [num_memories] * num_calls, [first_satellite_ground_dist_multiplier] * num_calls)
+    first_satellite_multipliers = np.linspace(0, 0.5, num=9)
+    result = {}
+    start_time = time()
     with Pool(num_processes) as pool:
-        result = pool.starmap_async(do_the_thing, aux_list)
+        for multiplier in first_satellite_multipliers:
+            num_calls = len(length_list)
+            aux_list = zip(length_list, [max_iter] * num_calls, [base_params] * num_calls, [cutoff_multiplier * base_params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
+            result[multiplier] = pool.starmap_async(do_the_thing, aux_list)
         pool.close()
-        actual_result = pd.Series(result.get(), index=length_list)
-        evaluated_result = [standard_bipartite_evaluation(df) for df in actual_result]
-        output = pd.DataFrame(data=evaluated_result, index=length_list, columns=["fidelity", "fidelity_std", "key_per_time", "key_per_time_std", "key_per_resource", "key_per_resource_std"])
-    plt.scatter(output.index, output["key_per_time"])
-    plt.yscale("log")
-    plt.grid()
-    plt.show()
+        for multiplier in first_satellite_multipliers:
+            data_series = pd.Series(result[multiplier].get(), index=length_list)
+            output_path = os.path.join(result_path, "%.3f_first_sat" % multiplier)
+            save_result(data_series=data_series, output_path=output_path, mode="write")
+    print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
