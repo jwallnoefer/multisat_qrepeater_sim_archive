@@ -82,6 +82,7 @@ class FourlinkProtocol(Protocol):
         super(FourlinkProtocol, self).__init__(world=world)
 
     def setup(self):
+        # Station ordering left to right
         assert len(self.stations) == 5
         self.station_ground_left = self.stations[0]
         self.sat_left = self.stations[1]
@@ -123,16 +124,6 @@ class FourlinkProtocol(Protocol):
         self.resource_cost_max_list += [long_range_pair.resource_cost_max]
         self.resource_cost_add_list += [long_range_pair.resource_cost_add]
         return
-
-    # def check(self):
-    #     pairs_link1 = self._get_pairs_between_stations(self.station_ground_left,self.sat_left)
-    #     num_pairs_link1 = len(pairs_link1)
-    #     num_pairs_scheduled_link1 = len(self._get_pairs_scheduled(self.station_ground_left,self.sat_left))
-    #     link1_used = num_pairs_link1 + num_pairs_scheduled_link1
-    #
-    #     if pairs_link1 == [] and num_pairs_scheduled_link1 == 0:
-    #         for _ in range(self.num_memories - link1_used):
-    #             self.source_link1.schedule_event()
 
     def check(self):
         free_memories = self.memory_check_global()
@@ -203,6 +194,7 @@ class FourlinkProtocol(Protocol):
         free_memories[self.station_ground_left] = (self.num_memories, self.num_memories)
         free_memories[self.station_ground_right] = (self.num_memories, self.num_memories)
         return free_memories
+
 
 def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satellite_ground_dist_multiplier=0.25):
     # unpack the parameters
@@ -303,9 +295,10 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
         def state_generation(source):
             state = np.dot(mat.phiplus, mat.H(mat.phiplus))
             comm_distance = np.max([distance(source, source.target_stations[0]), distance(source.target_stations[1], source)])
-            storage_time = 2 * comm_distance / C
+            trial_time = 2 * comm_distance / C
             for idx, station in enumerate(source.target_stations):
-                if station.memory_noise is not None:  # dephasing that has accrued while other qubit was travelling
+                if station.memory_noise is not None:  # dephasing that has accrued during trial
+                    storage_time = trial_time - distance(source, station) / C  # qubit is in storage for varying amounts of time
                     state = apply_single_qubit_map(map_func=station.memory_noise, qubit_index=idx, rho=state, t=storage_time)
                 if station.dark_count_probability is not None:  # dark counts are handled here because the information about eta is needed for that
                     eta = P_LINK * arrival_chance
@@ -365,7 +358,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
                                          time_distribution = time_distribution_link4,
                                          state_generation = state_generation_link4)
 
-    protocol = FourlinkProtocol(world, num_memories , stations = [station_ground_left, station_sat_left, station_sat_central, station_sat_right, station_ground_right], sources = [source_sat_left1 , source_sat_left2, source_sat_right1, source_sat_right2])
+    protocol = FourlinkProtocol(world, num_memories, stations = [station_ground_left, station_sat_left, station_sat_central, station_sat_right, station_ground_right], sources = [source_sat_left1 , source_sat_left2, source_sat_right1, source_sat_right2])
     protocol.setup()
 
     while len(protocol.time_list) < max_iter:
