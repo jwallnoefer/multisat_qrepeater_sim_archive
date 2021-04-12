@@ -126,11 +126,31 @@ class FourlinkProtocol(Protocol):
         return
 
     def check(self):
-        free_memories = self.memory_check_global()
-        for (station_left, station_right), source in zip(self.link_stations, self.sources):
-            links_free = np.min([free_memories[station_left][1], free_memories[station_right][0]])
-            for _ in range(links_free):
+        # first check if middle station memories are too full:
+        left_pairs, right pairs = self.pairs_at_station(self.sat_central)
+        if len(left_pairs) > self.num_memories:
+            last_pair = left_pairs[-1]
+            last_pair.qubits[0].destroy()
+            last_pair.qubits[1].destroy()
+            last_pair.destroy_and_track_resources()
+        if len(right_pairs) > self.num_memories:
+            last_pair = right_pairs[-1]
+            last_pair.qubits[0].destroy()
+            last_pair.qubits[1].destroy()
+            last_pair.destroy_and_track_resources()
+
+        # now regular checks can run
+        free_left_memories = self.memory_check(self.sat_left)
+        free_right_memories = self.memory_check(self.sat_right)
+        for free_memories, source in zip(free_left_memories + free_right_memories, self.sources)
+            for _ in range(free_memories):
                 source.schedule_event()
+
+        # free_memories = self.memory_check_global()
+        # for (station_left, station_right), source in zip(self.link_stations, self.sources):
+        #     links_free = np.min([free_memories[station_left][1], free_memories[station_right][0]])
+        #     for _ in range(links_free):
+        #         source.schedule_event()
 
         #Swapping loop
         for station in self.stations[1:-1]:
