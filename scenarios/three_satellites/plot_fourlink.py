@@ -35,7 +35,7 @@ for first_satellite_multiplier in np.linspace(0, 0.5, num=9):
 
 
 plt.yscale("log")
-plt.ylim(1e-1, 1e5)
+plt.ylim(1e-3, 1e5)
 plt.xlabel("Total ground distance [km]")
 plt.ylabel("Key per time [Hz]")
 plt.grid()

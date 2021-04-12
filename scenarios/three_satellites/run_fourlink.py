@@ -17,7 +17,7 @@ P_BSM = 1  # BSM success probability  ## WARNING: Currently not implemented
 LAMBDA_BSM = 1  # BSM ideality parameter
 F = 1  # error correction inefficiency
 
-T_2 = 0.1  # dephasing time
+T_2 = 0.01  # dephasing time
 ETA_MEM = 0.8  # memory efficiency
 ETA_DET = 0.7  # detector efficiency
 
