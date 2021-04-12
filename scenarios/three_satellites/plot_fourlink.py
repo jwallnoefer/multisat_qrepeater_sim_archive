@@ -15,7 +15,7 @@ for first_satellite_multiplier in np.linspace(0, 0.5, num=9):
     plt.scatter(x, y, marker="o", s=5, label="first_sat_pos=%.3f" % first_satellite_multiplier)
 
 plt.yscale("log")
-plt.ylim(1e-4, 1e-0)
+plt.ylim(1e-6, 1e-0)
 plt.xlabel("Total ground distance [km]")
 plt.ylabel("Key per resource")
 plt.grid()
@@ -35,7 +35,7 @@ for first_satellite_multiplier in np.linspace(0, 0.5, num=9):
 
 
 plt.yscale("log")
-plt.ylim(1e1, 1e5)
+plt.ylim(1e-1, 1e5)
 plt.xlabel("Total ground distance [km]")
 plt.ylabel("Key per time [Hz]")
 plt.grid()

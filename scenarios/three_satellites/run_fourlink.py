@@ -17,7 +17,7 @@ P_BSM = 1  # BSM success probability  ## WARNING: Currently not implemented
 LAMBDA_BSM = 1  # BSM ideality parameter
 F = 1  # error correction inefficiency
 
-T_2 = 1  # dephasing time
+T_2 = 0.1  # dephasing time
 ETA_MEM = 0.8  # memory efficiency
 ETA_DET = 0.7  # detector efficiency
 
@@ -46,8 +46,8 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
 
 if __name__ == "__main__":
     result_path = os.path.join("results", "three_satellites", "fourlink")
-    # length_list = np.linspace(0, 3600e3, num=96)
-    length_list = np.linspace(3700e3, 7200e3, num=96)
+    length_list = np.linspace(0, 5000e3, num=96)
+    #length_list = np.linspace(3700e3, 7200e3, num=96)
     num_memories = 1000
     max_iter = 1e3
     cutoff_multiplier = 0.1
@@ -64,5 +64,5 @@ if __name__ == "__main__":
         for multiplier in first_satellite_multipliers:
             data_series = pd.Series(result[multiplier].get(), index=length_list)
             output_path = os.path.join(result_path, "%.3f_first_sat" % multiplier)
-            save_result(data_series=data_series, output_path=output_path, mode="append")
+            save_result(data_series=data_series, output_path=output_path)#, mode="append")
     print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
