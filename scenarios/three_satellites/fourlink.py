@@ -127,7 +127,7 @@ class FourlinkProtocol(Protocol):
 
     def check(self):
         # first check if middle station memories are too full:
-        left_pairs, right pairs = self.pairs_at_station(self.sat_central)
+        left_pairs, right_pairs = self.pairs_at_station(self.sat_central)
         if len(left_pairs) > self.num_memories:
             last_pair = left_pairs[-1]
             last_pair.qubits[0].destroy()
@@ -142,7 +142,7 @@ class FourlinkProtocol(Protocol):
         # now regular checks can run
         free_left_memories = self.memory_check(self.sat_left)
         free_right_memories = self.memory_check(self.sat_right)
-        for free_memories, source in zip(free_left_memories + free_right_memories, self.sources)
+        for free_memories, source in zip(free_left_memories + free_right_memories, self.sources):
             for _ in range(free_memories):
                 source.schedule_event()
 
@@ -380,6 +380,9 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
 
     protocol = FourlinkProtocol(world, num_memories, stations = [station_ground_left, station_sat_left, station_sat_central, station_sat_right, station_ground_right], sources = [source_sat_left1 , source_sat_left2, source_sat_right1, source_sat_right2])
     protocol.setup()
+
+    # import code
+    # code.interact(local=locals())
 
     while len(protocol.time_list) < max_iter:
         protocol.check()
