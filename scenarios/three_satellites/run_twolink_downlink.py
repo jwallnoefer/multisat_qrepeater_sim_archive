@@ -10,6 +10,7 @@ from consts import SPEED_OF_LIGHT_IN_VACCUM as C
 
 
 # # # values taken from https://arxiv.org/abs/2006.10636
+F_CLOCK = 20e6  # 20 MHz is very high
 T_P = 0  # preparation time
 E_M_A = 0  # misalignment error
 P_D = 10**-6  # dark count probability per detector
@@ -28,7 +29,10 @@ DIVERGENCE_THETA = 10e-6
 
 P_LINK = ETA_MEM * ETA_DET
 base_params = {"P_LINK": P_LINK,
+               "ETA_MEM": ETA_MEM,
+               "ETA_DET": ETA_DET,
                "T_P": T_P,
+               "F_CLOCK": F_CLOCK,
                "T_DP": T_2,
                "E_MA": E_M_A,
                "P_D": P_D,
@@ -38,7 +42,9 @@ base_params = {"P_LINK": P_LINK,
                "RECEIVER_APERTURE_RADIUS": RECEIVER_APERTURE_RADIUS,
                "DIVERGENCE_THETA": DIVERGENCE_THETA}
 
+
 def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_satellite_ground_dist_multiplier):
+    np.random.seed()
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=first_satellite_ground_dist_multiplier)
     return p.data
 
