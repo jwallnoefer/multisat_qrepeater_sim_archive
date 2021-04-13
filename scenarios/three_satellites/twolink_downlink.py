@@ -126,6 +126,18 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
     except KeyError:
         P_LINK = 1.0
     try:
+        ETA_DET = params["ETA_DET"]
+    except KeyError as e:
+        raise Exception('params["ETA_DET"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        ETA_MEM = params["ETA_MEM"]
+    except KeyError as e:
+        raise Exception('params["ETA_MEM"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        F_CLOCK = params["F_CLOCK"]
+    except KeyError as e:
+        raise Exception('params["F_CLOCK"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
         T_P = params["T_P"]  # preparation time
     except KeyError:
         T_P = 0
@@ -176,58 +188,84 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
     station_b_angle = length / R_E
     station_b_position = position_from_angle(R_E, station_b_angle)
     elevation_left = elevation_curved(ground_dist=first_satellite_ground_dist_multiplier * length, h=ORBITAL_HEIGHT)
-    arrival_chance_left = eta_atm(elevation_left) \
-                          * eta_dif(distance=distance(station_a_position, first_satellite_position),
-                                    divergence_half_angle=DIVERGENCE_THETA,
-                                    sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS) \
-                          * eta_dif(distance=distance(first_satellite_position, second_satellite_position),
-                                    divergence_half_angle=DIVERGENCE_THETA,
-                                    sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    arrival_chance_a_left = eta_atm(elevation_left) \
+                            * eta_dif(distance=distance(station_a_position, first_satellite_position),
+                                      divergence_half_angle=DIVERGENCE_THETA,
+                                      sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                                      receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    arrival_chance_left_center = eta_dif(distance=distance(first_satellite_position, second_satellite_position),
+                                         divergence_half_angle=DIVERGENCE_THETA,
+                                         sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                                         receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    arrival_chance_left = arrival_chance_a_left * arrival_chance_left_center
     elevation_right = elevation_curved(ground_dist=first_satellite_ground_dist_multiplier * length, h=ORBITAL_HEIGHT)
-    arrival_chance_right = eta_atm(elevation_right) \
-                           * eta_dif(distance=distance(station_b_position, third_satellite_position),
-                                     divergence_half_angle=DIVERGENCE_THETA,
-                                     sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                     receiver_aperture_radius=RECEIVER_APERTURE_RADIUS) \
-                           * eta_dif(distance=distance(third_satellite_position, second_satellite_position),
-                                     divergence_half_angle=DIVERGENCE_THETA,
-                                     sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                     receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    arrival_chance_b_right = eta_atm(elevation_right) \
+                             * eta_dif(distance=distance(station_b_position, third_satellite_position),
+                                       divergence_half_angle=DIVERGENCE_THETA,
+                                       sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                                       receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    arrival_chance_right_center = eta_dif(distance=distance(third_satellite_position, second_satellite_position),
+                                          divergence_half_angle=DIVERGENCE_THETA,
+                                          sender_aperture_radius=SENDER_APERTURE_RADIUS,
+                                          receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+    arrival_chance_right = arrival_chance_b_right * arrival_chance_right_center
 
     def imperfect_bsm_err_func(four_qubit_state):
         return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
     def time_distribution_left(source):
-        distribution_distance = distance(source, source.target_stations[0])  # here the first station is the ground station
-        distribution_time = distribution_distance / C
+        ground_station = source.target_stations[0]  # here the first station is the ground station
+        ground_station_distance = distance(source, ground_station)
+        ground_station_time = ground_station_distance / C
+        satellite = source.target_stations[1]
+        satellite_distance = distance(source, satellite)
+        satellite_time = satellite_distance / C
         comm_distance = distance(source.target_stations[0], source.target_stations[1])  # ground station needs to communicate with middle satellite because that is where the memories are
         # careful: doesn't account for the case where memory satellite is below the horizon
         comm_time = comm_distance / C
-        trial_time = T_P + distribution_time + comm_time
-        eta = P_LINK * arrival_chance_left
-        eta_effective = 1 - (1 - eta) * (1 - P_D)**2
-        random_num = np.random.geometric(eta_effective)
-        return random_num * trial_time, random_num
+        satellite_eta = ETA_MEM * arrival_chance_left_center
+        ground_eta = ETA_DET * arrival_chance_a_left
+        ground_eta_effective = 1 - (1 - ground_eta) * (1 - P_D)**2
+        # now do the calculation for inner and outer state generation loop
+        inner_time = num_memories * 1 / F_CLOCK
+        outer_time = ground_station_time - satellite_time + comm_time
+        num_outer = np.random.geometric(ground_eta_effective)
+        num_inner = 0
+        for _ in range(num_outer):
+            num_inner += np.random.geometric(satellite_eta)
+        total_time = num_inner * inner_time + num_outer * outer_time
+        total_trials = num_inner
+        return total_time, total_trials
 
     def time_distribution_right(source):
-        distribution_distance = distance(source, source.target_stations[1])  # here the second station is the ground station
-        distribution_time = distribution_distance / C
+        ground_station = source.target_stations[1]  # here the first station is the ground station
+        ground_station_distance = distance(source, ground_station)
+        ground_station_time = ground_station_distance / C
+        satellite = source.target_stations[0]
+        satellite_distance = distance(source, satellite)
+        satellite_time = satellite_distance / C
         comm_distance = distance(source.target_stations[0], source.target_stations[1])  # ground station needs to communicate with middle satellite because that is where the memories are
         # careful: doesn't account for the case where memory satellite is below the horizon
         comm_time = comm_distance / C
-        trial_time = T_P + distribution_time + comm_time
-        eta = P_LINK * arrival_chance_right
-        eta_effective = 1 - (1 - eta) * (1 - P_D)**2
-        random_num = np.random.geometric(eta_effective)
-        return random_num * trial_time, random_num
+        satellite_eta = ETA_MEM * arrival_chance_left_center
+        ground_eta = ETA_DET * arrival_chance_a_left
+        ground_eta_effective = 1 - (1 - ground_eta) * (1 - P_D)**2
+        # now do the calculation for inner and outer state generation loop
+        inner_time = num_memories * 1 / F_CLOCK
+        outer_time = ground_station_time - satellite_time + comm_time
+        num_outer = np.random.geometric(ground_eta_effective)
+        num_inner = 0
+        for _ in range(num_outer):
+            num_inner += np.random.geometric(satellite_eta)
+        total_time = num_inner * inner_time + num_outer * outer_time
+        total_trials = num_inner
+        return total_time, total_trials
 
     @lru_cache()
     def state_generation_left(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
-        ground_station = source.target_stations[0]
-        ground_station_distance = distance(source, ground_station)  # here the second station is the ground station
+        ground_station = source.target_stations[0]  # here the first station is the ground station
+        ground_station_distance = distance(source, ground_station)
         ground_station_time = ground_station_distance / C
         satellite = source.target_stations[1]
         satellite_distance = distance(source, satellite)
@@ -246,8 +284,8 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
     @lru_cache()
     def state_generation_right(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
-        ground_station = source.target_stations[1]
-        ground_station_distance = distance(source, ground_station)  # here the second station is the ground station
+        ground_station = source.target_stations[1]  # here the second station is the ground station
+        ground_station_distance = distance(source, ground_station)
         ground_station_time = ground_station_distance / C
         satellite = source.target_stations[0]
         satellite_distance = distance(source, satellite)
@@ -297,12 +335,12 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    length_list = np.linspace(6000e3, 24000e3, num=10)
+    length_list = np.linspace(0e3, 8000e3, num=10)
     # length_list = [0]
     for sat_pos in [0, 0.125, 0.25, 0.375, 0.5]:
         print(sat_pos)
         # ps = [run(length=length, max_iter=1000, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
-        ps = [run(length=length, max_iter=100, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
+        ps = [run(length=length, max_iter=100, params={"P_LINK": 0.56, "ETA_MEM": 0.8, "ETA_DET": 0.7, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
         from libs.aux_functions import standard_bipartite_evaluation
         res = [standard_bipartite_evaluation(p.data) for p in ps]
         plt.errorbar(length_list / 1000, [r[4] / 2 for r in res], yerr=[r[5] / 2 for r in res], fmt="o", label=str(sat_pos))  # 10 * np.log10(key_per_resource))
