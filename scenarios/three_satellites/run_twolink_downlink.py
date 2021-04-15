@@ -53,85 +53,84 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
 
 
 if __name__ == "__main__":
-    if __name__ == "__main__":
-        result_path = os.path.join("results", "three_satellites", "twolink_downlink")
-        if int(sys.argv[1]) == 0:
-            out_path = os.path.join(result_path, "sat_positions")
-            params = dict(base_params)
-            params["DIVERGENCE_THETA"] = 2e-6
-            params["T_DP"] = 100e-3
-            num_memories = 1000
-            length_list = np.linspace(0, 8800e3, num=96)
-            max_iter = 1e3
-            cutoff_multiplier = 0.1
-            num_processes = 32
-            first_satellite_multipliers = np.linspace(0, 0.5, num=9)
-            length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-            custom_length_lists = [length_list[length_list <= len_cutoff] for len_cutoff in length_cutoffs]
-            result = {}
-            start_time = time()
-            with Pool(num_processes) as pool:
-                for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-                    num_calls = len(lens)
-                    aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
-                    result[multiplier] = pool.starmap_async(do_the_thing, aux_list)
-                pool.close()
-                for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-                    data_series = pd.Series(result[multiplier].get(), index=lens)
-                    output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
-                    save_result(data_series=data_series, output_path=output_path)#, mode="append")
-            print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-        elif int(sys.argv[1]) in [1, 2, 3, 4]:
-            out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
-            thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
-            params = dict(base_params)
-            params["DIVERGENCE_THETA"] = thetas[int(sys.argv[1])]
-            params["T_DP"] = 100e-3
-            num_memories = 1000
-            length_list = np.linspace(0, 8800e3, num=96)
-            max_iter = 1e3
-            cutoff_multiplier = 0.1
-            num_processes = 32
-            first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
-            length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-            custom_length_lists = [length_list[length_list <= len_cutoff] for len_cutoff in length_cutoffs]
-            result = {}
-            start_time = time()
-            with Pool(num_processes) as pool:
-                for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-                    num_calls = len(lens)
-                    aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
-                    result[multiplier] = pool.starmap_async(do_the_thing, aux_list)
-                pool.close()
-                for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-                    data_series = pd.Series(result[multiplier].get(), index=lens)
-                    output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
-                    save_result(data_series=data_series, output_path=output_path)#, mode="append")
-            print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-        elif int(sys.argv[1]) in [5, 6]:
-            out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
-            memories = {5: 100, 6: 1000}
-            params = dict(base_params)
-            params["DIVERGENCE_THETA"] = 2e-6
-            first_satellite_multiplier = 0.0
-            num_memories = memories[int(sys.argv[1])]
-            dephasing_times = [10e-3, 50e-3, 100e-3]
-            length_list = np.linspace(0, 8800e3, num=96)
-            max_iter = 1e3
-            cutoff_multiplier = 0.1
-            num_processes = 32
-            result = {}
-            start_time = time()
-            with Pool(num_processes) as pool:
-                for t_dp in dephasing_times:
-                    t_params = dict(params)
-                    t_params["T_DP"] = t_dp
-                    num_calls = len(length_list)
-                    aux_list = zip(length_list, [max_iter] * num_calls, [t_params] * num_calls, [cutoff_multiplier * t_params["T_DP"]] * num_calls, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
-                    result[t_dp] = pool.starmap_async(do_the_thing, aux_list)
-                pool.close()
-                for t_dp in dephasing_times:
-                    data_series = pd.Series(result[t_dp].get(), index=length_list)
-                    output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
-                    save_result(data_series=data_series, output_path=output_path)#, mode="append")
-            print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    result_path = os.path.join("results", "three_satellites", "twolink_downlink")
+    if int(sys.argv[1]) == 0:
+        out_path = os.path.join(result_path, "sat_positions")
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = 2e-6
+        params["T_DP"] = 100e-3
+        num_memories = 1000
+        length_list = np.linspace(0, 8800e3, num=96)
+        max_iter = 1e3
+        cutoff_multiplier = 0.1
+        num_processes = 32
+        first_satellite_multipliers = np.linspace(0, 0.5, num=9)
+        length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
+        custom_length_lists = [length_list[length_list <= len_cutoff] for len_cutoff in length_cutoffs]
+        result = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
+                num_calls = len(lens)
+                aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
+                result[multiplier] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
+                data_series = pd.Series(result[multiplier].get(), index=lens)
+                output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
+                save_result(data_series=data_series, output_path=output_path)#, mode="append")
+        print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    elif int(sys.argv[1]) in [1, 2, 3, 4]:
+        out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
+        thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = thetas[int(sys.argv[1])]
+        params["T_DP"] = 100e-3
+        num_memories = 1000
+        length_list = np.linspace(0, 8800e3, num=96)
+        max_iter = 1e3
+        cutoff_multiplier = 0.1
+        num_processes = 32
+        first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
+        length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
+        custom_length_lists = [length_list[length_list <= len_cutoff] for len_cutoff in length_cutoffs]
+        result = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
+                num_calls = len(lens)
+                aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
+                result[multiplier] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
+                data_series = pd.Series(result[multiplier].get(), index=lens)
+                output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
+                save_result(data_series=data_series, output_path=output_path)#, mode="append")
+        print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    elif int(sys.argv[1]) in [5, 6]:
+        out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
+        memories = {5: 100, 6: 1000}
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = 2e-6
+        first_satellite_multiplier = 0.0
+        num_memories = memories[int(sys.argv[1])]
+        dephasing_times = [10e-3, 50e-3, 100e-3]
+        length_list = np.linspace(0, 8800e3, num=96)
+        max_iter = 1e3
+        cutoff_multiplier = 0.1
+        num_processes = 32
+        result = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for t_dp in dephasing_times:
+                t_params = dict(params)
+                t_params["T_DP"] = t_dp
+                num_calls = len(length_list)
+                aux_list = zip(length_list, [max_iter] * num_calls, [t_params] * num_calls, [cutoff_multiplier * t_params["T_DP"]] * num_calls, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
+                result[t_dp] = pool.starmap_async(do_the_thing, aux_list)
+            pool.close()
+            for t_dp in dephasing_times:
+                data_series = pd.Series(result[t_dp].get(), index=length_list)
+                output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
+                save_result(data_series=data_series, output_path=output_path)#, mode="append")
+        print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
