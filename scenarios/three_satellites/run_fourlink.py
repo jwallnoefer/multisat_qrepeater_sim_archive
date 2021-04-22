@@ -31,8 +31,9 @@ SENDER_APERTURE_RADIUS = 0.15
 RECEIVER_APERTURE_RADIUS = 0.50
 # DIVERGENCE_THETA = 2e-6
 
-P_LINK = ETA_MEM * ETA_DET
-base_params = {"P_LINK": P_LINK,
+# P_LINK = ETA_MEM * ETA_DET
+base_params = {"ETA_MEM": ETA_MEM,
+               "ETA_DET": ETA_DET,
                "T_P": T_P,
                "E_MA": E_M_A,
                "P_D": P_D,
