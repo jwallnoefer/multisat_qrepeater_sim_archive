@@ -123,7 +123,7 @@ if __name__ == "__main__":
             for i, (multiplier, lens) in enumerate(run_list):
                 data_series = pd.Series(result[i].get(), index=lens)
                 output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
-                save_result(data_series=data_series, output_path=output_path), mode="append")
+                save_result(data_series=data_series, output_path=output_path, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
     elif int(sys.argv[1]) in [5, 6]:
         out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
