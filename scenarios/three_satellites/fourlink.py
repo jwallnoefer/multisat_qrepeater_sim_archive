@@ -12,6 +12,7 @@ from functools import lru_cache
 from noise import NoiseModel, NoiseChannel
 from quantum_objects import SchedulingSource, Station
 from functools import lru_cache
+from collections import defaultdict
 import pandas as pd
 
 
@@ -31,7 +32,6 @@ def construct_y_noise_channel(epsilon):
 
 def construct_w_noise_channel(epsilon):
     return lambda rho: w_noise_channel(rho=rho, alpha=(1 - epsilon))
-
 
 def alpha_of_eta(eta, p_d):
     return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
@@ -60,7 +60,6 @@ def sat_dist_curved(ground_dist, h):
     L = np.sqrt(R_E**2 + (R_E + h)**2 - 2 * R_E * (R_E + h) * np.cos(alpha))
     return L
 
-
 def elevation_curved(ground_dist, h):
     # ground dist refers to distance between station and the "shadow" of the satellite
     alpha = ground_dist / R_E
@@ -68,6 +67,17 @@ def elevation_curved(ground_dist, h):
     beta = np.arcsin(R_E / L * np.sin(alpha))
     gamma = np.pi - alpha - beta
     return gamma - np.pi / 2
+
+
+@lru_cache(maxsize=int(1e6))
+def is_event_swapping_pairs(event, pair1, pair2):
+    return isinstance(event, EntanglementSwappingEvent) and (pair1 in event.pairs) and (pair2 in event.pairs)
+
+
+@lru_cache(maxsize=int(1e6))
+def is_sourceevent_between_stations(event, station1, station2):
+    return isinstance(event, SourceEvent) and (station1 in event.source.target_stations) and (station2 in event.source.target_stations)
+
 
 class FourlinkProtocol(Protocol):
     #
@@ -79,6 +89,7 @@ class FourlinkProtocol(Protocol):
         self.resource_cost_add_list = []
         self.stations = stations
         self.sources = sources
+        self.scheduled_swappings = defaultdict(lambda: [])
         super(FourlinkProtocol, self).__init__(world=world)
 
     def setup(self):
@@ -109,10 +120,7 @@ class FourlinkProtocol(Protocol):
         return list(filter(lambda pair: pair.is_between_stations(station1, station2), pairs))
 
     def _get_pairs_scheduled(self, station1, station2):
-        return list(filter(lambda event: (isinstance(event, SourceEvent)
-                           and (station1 in event.source.target_stations)
-                           and (station2 in event.source.target_stations)
-                           ),
+        return list(filter(lambda event: is_sourceevent_between_stations(event, station1, station2),
                     self.world.event_queue.queue))
 
     def _eval_pair(self, long_range_pair):
@@ -156,19 +164,19 @@ class FourlinkProtocol(Protocol):
         for station in self.stations[1:-1]:
             left_pairs, right_pairs = self.pairs_at_station(station)
             num_swappings = min(len(left_pairs), len(right_pairs))
+            if num_swappings:
+                # get rid of events that are no longer scheduled
+                self.scheduled_swappings[station] = [event for event in self.scheduled_swappings[station] if event in self.world.event_queue.queue]
             for left_pair, right_pair in zip(left_pairs[:num_swappings], right_pairs[:num_swappings]):
                 # assert that we do not schedule the same swapping more than once
                 try:
-                    next(filter(lambda event: (isinstance(event, EntanglementSwappingEvent)
-                                               and (left_pair in event.pairs)
-                                               and (right_pair in event.pairs)
-                                               ),
-                                self.world.event_queue.queue))
+                    next(filter(lambda event: is_event_swapping_pairs(event, left_pair, right_pair), self.scheduled_swappings[station]))
                     is_already_scheduled = True
                 except StopIteration:
                     is_already_scheduled = False
                 if not is_already_scheduled:
                     ent_swap_event = EntanglementSwappingEvent(time=self.world.event_queue.current_time, pairs=[left_pair, right_pair])
+                    self.scheduled_swappings[station] += [ent_swap_event]
                     self.world.event_queue.add_event(ent_swap_event)
 
         #Evaluate long range pairs
@@ -391,5 +399,5 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
     return protocol
 
 if __name__ == "__main__":
-    p = run(length=200e3, max_iter=100, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=0)
+    p = run(length=6000e3, max_iter=100, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=0)
     print(p.data)
