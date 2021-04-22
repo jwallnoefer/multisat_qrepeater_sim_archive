@@ -228,9 +228,13 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
     # unpack the parameters
     # print(length)
     try:
-        P_LINK = params["P_LINK"]
+        ETA_DET = params["ETA_DET"]
     except KeyError:
-        P_LINK = 1.0
+        ETA_DET = 1.0
+    try:
+        ETA_MEM = params["ETA_MEM"]
+    except KeyError:
+        ETA_MEM = 1.0
     try:
         T_P = params["T_P"]  # preparation time
     except KeyError:
@@ -302,23 +306,23 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
                                     sender_aperture_radius=SENDER_APERTURE_RADIUS,
                                     receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
 
-    def generate_time_distribution(arrival_chance):
+    def generate_time_distribution(arrival_chance, p_link):
         def time_distribution(source):
             comm_distance = np.max([distance(source, source.target_stations[0]), distance(source.target_stations[1], source)])
             comm_time = 2 * comm_distance / C
-            eta = P_LINK * arrival_chance
+            eta = p_link * arrival_chance
             eta_effective = 1 - (1 - eta) * (1 - P_D)**2
             trial_time = T_P + comm_time  # I don't think that paper uses latency time and loading time?
             random_num = np.random.geometric(eta_effective)
             return random_num * trial_time, random_num
         return time_distribution
 
-    time_distribution_link1 = generate_time_distribution(arrival_chance_link1)
-    time_distribution_link2 = generate_time_distribution(arrival_chance_link2)
-    time_distribution_link3 = generate_time_distribution(arrival_chance_link3)
-    time_distribution_link4 = generate_time_distribution(arrival_chance_link4)
+    time_distribution_link1 = generate_time_distribution(arrival_chance_link1, ETA_MEM*ETA_DET)
+    time_distribution_link2 = generate_time_distribution(arrival_chance_link2, ETA_MEM**2)
+    time_distribution_link3 = generate_time_distribution(arrival_chance_link3, ETA_MEM**2)
+    time_distribution_link4 = generate_time_distribution(arrival_chance_link4, ETA_MEM*ETA_DET)
 
-    def generate_state_generation(arrival_chance):
+    def generate_state_generation(arrival_chance, p_link):
         @lru_cache()
         def state_generation(source):
             state = np.dot(mat.phiplus, mat.H(mat.phiplus))
@@ -329,15 +333,15 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
                     storage_time = trial_time - distance(source, station) / C  # qubit is in storage for varying amounts of time
                     state = apply_single_qubit_map(map_func=station.memory_noise, qubit_index=idx, rho=state, t=storage_time)
                 if station.dark_count_probability is not None:  # dark counts are handled here because the information about eta is needed for that
-                    eta = P_LINK * arrival_chance
+                    eta = p_link * arrival_chance
                     state = apply_single_qubit_map(map_func=w_noise_channel, qubit_index=idx, rho=state, alpha=alpha_of_eta(eta=eta, p_d=station.dark_count_probability))
             return state
         return state_generation
 
-    state_generation_link1 = generate_state_generation(arrival_chance_link1)
-    state_generation_link2 = generate_state_generation(arrival_chance_link2)
-    state_generation_link3 = generate_state_generation(arrival_chance_link3)
-    state_generation_link4 = generate_state_generation(arrival_chance_link4)
+    state_generation_link1 = generate_state_generation(arrival_chance_link1, ETA_MEM*ETA_DET)
+    state_generation_link2 = generate_state_generation(arrival_chance_link2, ETA_MEM**2)
+    state_generation_link3 = generate_state_generation(arrival_chance_link3, ETA_MEM**2)
+    state_generation_link4 = generate_state_generation(arrival_chance_link4, ETA_MEM*ETA_DET)
 
     misalignment_noise = NoiseChannel(n_qubits=1, channel_function=construct_y_noise_channel(epsilon=E_MA))
 
@@ -399,5 +403,5 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
     return protocol
 
 if __name__ == "__main__":
-    p = run(length=6000e3, max_iter=100, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=0)
+    p = run(length=6000e3, max_iter=100, params={"ETA_MEM": 0.8, "ETA_DET": 0.7, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 1e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=0)
     print(p.data)
