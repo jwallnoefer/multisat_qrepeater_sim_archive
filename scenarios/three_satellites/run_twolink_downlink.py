@@ -86,7 +86,7 @@ if __name__ == "__main__":
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
-            for i, (multiplier, lens) in enumerate(run_list)::
+            for i, (multiplier, lens) in enumerate(run_list):
                 num_calls = len(lens)
                 aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
                 result[i] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
