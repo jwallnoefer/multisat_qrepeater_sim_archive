@@ -66,6 +66,7 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
 
 if __name__ == "__main__":
     result_path = os.path.join("results", "three_satellites", "twolink_downlink")
+    num_processes = int(sys.argv[2])
     if int(sys.argv[1]) == 0:
         out_path = os.path.join(result_path, "sat_positions")
         params = dict(base_params)
@@ -75,14 +76,12 @@ if __name__ == "__main__":
         length_list = np.linspace(0, 8800e3, num=96)
         max_iter = 1e3
         cutoff_multiplier = 0.1
-        num_processes = 32
         first_satellite_multipliers = np.linspace(0, 0.5, num=9)
         first_satellite_multipliers = first_satellite_multipliers[4:]
         # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-        length_cutoffs = [4400e3] * 5
-        custom_length_lists = [length_list[length_list <= len_cutoff] for len_cutoff in length_cutoffs]
-        run_list = [labeled_split_list(label=multiplier, my_list=my_list, chunksize=8) for multiplier, my_list in zip(first_satellite_multipliers, custom_length_lists)]
-        run_list = reorder_runs(run_list)
+        length_cutoffs = [7000e3, 6000e3, 5500e3, 5000e3, 3800e3]
+        length_starts = [4400e3] * 4 + [3620e3]
+        custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start) for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
@@ -106,16 +105,20 @@ if __name__ == "__main__":
         length_list = np.linspace(0, 8800e3, num=96)
         max_iter = 1e3
         cutoff_multiplier = 0.1
-        num_processes = 32
         first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
         first_satellite_multipliers = first_satellite_multipliers[2:]
         # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
         cutoff_dict = {1: [4400e3, 4400e3],
                        2: [4400e3, 4400e3],
-                       3: [2200e3] * 2,
+                       3: [3000e3] * 2,
                        4: [2200e3] * 2}
+        start_dict = {#1: [2200e3] * 4,
+                      #2: [2200e3] * 4,
+                      3: [2200e3] * 4,
+                      #4: [2200e3, 2200e3, 2200e3, 1390e3]}
         length_cutoffs = cutoff_dict[int(sys.argv[1])]
-        custom_length_lists = [length_list[length_list <= len_cutoff] for len_cutoff in length_cutoffs]
+        length_starts = cutoff_dict[int(sys.argv[1])]
+        custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start) for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         run_list = [labeled_split_list(label=multiplier, my_list=my_list, chunksize=8) for multiplier, my_list in zip(first_satellite_multipliers, custom_length_lists)]
         run_list = reorder_runs(run_list)
         result = {}
@@ -142,7 +145,6 @@ if __name__ == "__main__":
         length_list = np.linspace(0, 8800e3, num=96)
         max_iter = 1e3
         cutoff_multiplier = 0.1
-        num_processes = 32
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
