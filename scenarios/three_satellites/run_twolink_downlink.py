@@ -85,13 +85,13 @@ if __name__ == "__main__":
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
-            for i, (multiplier, lens) in enumerate(run_list):
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
                 num_calls = len(lens)
                 aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
-                result[i] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
+                result[multiplier] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
             pool.close()
-            for i, (multiplier, lens) in enumerate(run_list):
-                data_series = pd.Series(result[i].get(), index=lens)
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
+                data_series = pd.Series(result[multiplier].get(), index=lens)
                 output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
                 save_result(data_series=data_series, output_path=output_path, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
@@ -115,22 +115,21 @@ if __name__ == "__main__":
         start_dict = {#1: [2200e3] * 4,
                       #2: [2200e3] * 4,
                       3: [2200e3] * 4,
-                      #4: [2200e3, 2200e3, 2200e3, 1390e3]}
+                      # 4: [2200e3, 2200e3, 2200e3, 1390e3]
+                      }
         length_cutoffs = cutoff_dict[int(sys.argv[1])]
-        length_starts = cutoff_dict[int(sys.argv[1])]
+        length_starts = start_dict[int(sys.argv[1])]
         custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
-        run_list = [labeled_split_list(label=multiplier, my_list=my_list, chunksize=8) for multiplier, my_list in zip(first_satellite_multipliers, custom_length_lists)]
-        run_list = reorder_runs(run_list)
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
-            for i, (multiplier, lens) in enumerate(run_list):
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
                 num_calls = len(lens)
                 aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
-                result[i] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
+                result[multiplier] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
             pool.close()
-            for i, (multiplier, lens) in enumerate(run_list):
-                data_series = pd.Series(result[i].get(), index=lens)
+            for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
+                data_series = pd.Series(result[multiplier].get(), index=lens)
                 output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
                 save_result(data_series=data_series, output_path=output_path, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))

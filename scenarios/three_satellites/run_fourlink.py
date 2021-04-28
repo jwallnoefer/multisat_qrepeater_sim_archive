@@ -112,7 +112,7 @@ if __name__ == "__main__":
                       3: [2200e3] * 4,
                       4: [2200e3, 2200e3, 2200e3, 1390e3]}
         length_cutoffs = cutoff_dict[int(sys.argv[1])]
-        length_starts = cutoff_dict[int(sys.argv[1])]
+        length_starts = start_dict[int(sys.argv[1])]
         custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         result = {}
         start_time = time()
