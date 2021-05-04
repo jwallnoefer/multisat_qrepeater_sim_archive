@@ -638,6 +638,13 @@ class EventQueue(object):
             raise ValueError("time_interval too large. Manual time advancing skipped an event. Time travel is not permitted.")
 
     def print_stats(self):
+        """Print stats about the events scheduled and resolved so far.
+
+        Returns
+        -------
+        None
+
+        """
         for event_type, count_dict in self._stats.items():
             string_parts = [f"{event_type}:",
                             f"{count_dict['scheduled']} scheduled",
