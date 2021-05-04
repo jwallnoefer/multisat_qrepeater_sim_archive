@@ -5,6 +5,7 @@ import libs.matrix as mat
 from libs.aux_functions import dejmps_protocol
 import numpy as np
 import quantum_objects
+from collections import defaultdict
 from warnings import warn
 
 if sys.version_info >= (3, 4):
@@ -36,6 +37,7 @@ class Event(ABC):
     event_queue : EventQueue
         The event is part of this event queue.
         (None until added to an event queue.)
+    type
     time
     required_objects
     priority
@@ -52,6 +54,7 @@ class Event(ABC):
         self.priority = priority
         self.ignore_blocked = ignore_blocked
         self.event_queue = None
+        self._return_dict = {"event_type": self.type, "resolve_successful": True}
 
     @abstractmethod
     def __repr__(self):
@@ -101,17 +104,22 @@ class Event(ABC):
 
         Returns
         -------
-        None or dict
-            dict may optionally be used to pass information to the protocol.
-            The protocol will not necessarily use this information.
+        dict
+            dict may contain additional information that can be passed to the
+            protocol. The protocol will not necessarily use this information.
 
         """
         if self._check_event_is_valid():
-            return_value = self._main_effect()
+            main_return_dict = self._main_effect()
+            try:
+                self._return_dict.update(main_return_dict)
+            except TypeError:
+                # expected to happen when self._main_effect() returns None
+                pass
         else:
-            return_value = {"event_type": self.type, "resolve_successful": False}
+            self._return_dict.update({"resolve_successful": False})
         self._deregister_from_objects()
-        return return_value
+        return self._return_dict
 
 
 class GenericEvent(Event):
@@ -414,7 +422,7 @@ class EntanglementPurificationEvent(Event):
         if np.random.random() <= p_suc:  # if successful
             unblock_event = UnblockEvent(time=self.time + communication_time, quantum_objects=[output_pair, output_pair.qubit1, output_pair.qubit2])
             self.event_queue.add_event(unblock_event)
-            return {"event_type": self.type, "output_pair": output_pair, "is_successful": True}
+            return {"output_pair": output_pair, "is_successful": True}
         else:  # if unsuccessful
             def destroy_function():
                 output_pair.destroy_and_track_resources()
@@ -425,7 +433,7 @@ class EntanglementPurificationEvent(Event):
                                          required_objects=[output_pair],
                                          priority=0, ignore_blocked=True)
             self.event_queue.add_event(destroy_event)
-            return {"event_type": self.type, "output_pair": output_pair, "is_successful": False}
+            return {"output_pair": output_pair, "is_successful": False}
 
 
 class UnblockEvent(Event):
@@ -463,7 +471,7 @@ class UnblockEvent(Event):
     def _main_effect(self):
         for quantum_object in self.quantum_objects:
             quantum_object.is_blocked = False
-        return {"event_type": self.type, "unblocked_objects": self.quantum_objects, "resolve_successful": True}
+        return {"unblocked_objects": self.quantum_objects}
 
 
 class EventQueue(object):
@@ -481,6 +489,7 @@ class EventQueue(object):
     def __init__(self):
         self.queue = []
         self.current_time = 0
+        self._stats = defaultdict(lambda: {"scheduled": 0, "resolved": 0, "resolved_successfully": 0})
 
     def __str__(self):
         return "EventQueue: " + str(self.queue)
@@ -558,21 +567,26 @@ class EventQueue(object):
             raise ValueError("EventQueue.add_event tried to schedule an event in the past.")
         event.event_queue = self
         self._insert_event(event)
+        self._stats[event.type]["scheduled"] += 1
 
     def resolve_next_event(self):
         """Remove the next scheduled event from the queue and resolve it.
 
         Returns
         -------
-        None or dict:
-            Whatever event.resolve() returns (usually None or dict). Is used to pass resolve message
-            through to the protocol.
+        dict:
+            A dict with at least keys "event_type" and "resolve_successful",
+            may have additional keys with additional information that can be
+            passed to the protocol.
 
         """
         event = self.queue[0]
         self.current_time = event.time
         return_message = event.resolve()
         self.queue = self.queue[1:]
+        self._stats[event.type]["resolved"] += 1
+        if return_message["resolve_successful"]:
+            self._stats[event.type]["resolved_successfully"] += 1
         return return_message
 
     def resolve_until(self, target_time):
@@ -622,3 +636,11 @@ class EventQueue(object):
         self.current_time += time_interval
         if self.queue and self.queue[0].time < self.current_time:
             raise ValueError("time_interval too large. Manual time advancing skipped an event. Time travel is not permitted.")
+
+    def print_stats(self):
+        for event_type, count_dict in self._stats.items():
+            string_parts = [f"{event_type}:",
+                            f"{count_dict['scheduled']} scheduled",
+                            f"{count_dict['resolved']} resolved",
+                            f"{count_dict['resolved_successfully']} resolved successfully"]
+            print("\n    ".join(string_parts))
