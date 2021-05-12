@@ -118,7 +118,7 @@ class MultiMemoryProtocol(TwoLinkProtocol):
             self.check()
 
 
-def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satellite_ground_dist_multiplier=0.25):
+def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satellite_ground_dist_multiplier=0.25, return_world=False):
     # unpack the parameters
     # print(length)
     try:
@@ -330,20 +330,34 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
         protocol.check()
         world.event_queue.resolve_next_event()
 
-    return protocol
+    if return_world:
+        return protocol, world
+    else:
+        return protocol
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    length_list = np.linspace(0e3, 8000e3, num=10)
-    # length_list = [0]
-    for sat_pos in [0, 0.125, 0.25, 0.375, 0.5]:
-        print(sat_pos)
-        # ps = [run(length=length, max_iter=1000, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
-        ps = [run(length=length, max_iter=100, params={"P_LINK": 0.56, "ETA_MEM": 0.8, "ETA_DET": 0.7, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
-        from libs.aux_functions import standard_bipartite_evaluation
-        res = [standard_bipartite_evaluation(p.data) for p in ps]
-        plt.errorbar(length_list / 1000, [r[4] / 2 for r in res], yerr=[r[5] / 2 for r in res], fmt="o", label=str(sat_pos))  # 10 * np.log10(key_per_resource))
-    plt.yscale("log")
-    plt.legend()
-    plt.show()
+    length_list = np.linspace(0e3, 8000e3, num=16)
+    from time import time
+    for length in length_list:
+        start_time = time()
+        p, w = run(length=length, max_iter=100,
+                   params={"P_LINK": 0.56, "ETA_MEM": 0.8, "ETA_DET": 0.7, "F_CLOCK": 1 / 20e6,
+                           "T_DP": 0.1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15,
+                           "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6},
+                   cutoff_time=0.05, num_memories=10, first_satellite_ground_dist_multiplier=0, return_world=True)
+        print(f"{length=} finished in {(time()-start_time):.2f} seconds.")
+        w.event_queue.print_stats()
+    # import matplotlib.pyplot as plt
+    # length_list = np.linspace(0e3, 8000e3, num=10)
+    # # length_list = [0]
+    # for sat_pos in [0, 0.125, 0.25, 0.375, 0.5]:
+    #     print(sat_pos)
+    #     # ps = [run(length=length, max_iter=1000, params={"P_LINK": 0.56, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 10e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
+    #     ps = [run(length=length, max_iter=100, params={"P_LINK": 0.56, "ETA_MEM": 0.8, "ETA_DET": 0.7, "T_DP": 1, "P_D": 10**-6, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=0.5, num_memories=1000, first_satellite_ground_dist_multiplier=sat_pos) for length in length_list]
+    #     from libs.aux_functions import standard_bipartite_evaluation
+    #     res = [standard_bipartite_evaluation(p.data) for p in ps]
+    #     plt.errorbar(length_list / 1000, [r[4] / 2 for r in res], yerr=[r[5] / 2 for r in res], fmt="o", label=str(sat_pos))  # 10 * np.log10(key_per_resource))
+    # plt.yscale("log")
+    # plt.legend()
+    # plt.show()
