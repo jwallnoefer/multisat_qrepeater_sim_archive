@@ -433,53 +433,56 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
         return protocol
 
 if __name__ == "__main__":
-    # np.random.seed(48215485)
-    # run(length=100e3, max_iter=500, params={"ETA_MEM": 0.8, "ETA_DET": 0.7, "P_D": 10**-6, "T_DP": 1.0, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=0.1, num_memories=1000, first_satellite_ground_dist_multiplier=0)
-    # orbital_heights = [400e3, 1250e3, 4000e3, 12000e3, 36000e3]
-    orbital_heights = [300e3, 400e3, 500e3, 600e3, 800e3, 1250e3, 1500e3, 2000e3]
-    horizons = [2 * np.arccos(R_E/(R_E + orbit_height))*R_E  for orbit_height in orbital_heights]
-    # print([horizon/1e3 for horizon in horizons])
-    idx = -1
-    threshold = 10e-1
-    # lengths = np.linspace(100e3, horizons[idx], num=16)
-    lengths= np.linspace(250e3, 4000e3, num=20)
-    # lengths = [horizons[-1]]
-    cutoff_times = [0.1, 0.2, 0.3, 0.4, 0.5]
+    np.random.seed(48215485)
     from time import time
-    from libs.aux_functions import standard_bipartite_evaluation
-    keys = {}
-    end_times = {}
-    for cutoff_time in cutoff_times:
-        keys[cutoff_time] = []
-        end_times[cutoff_time] = []
-        for length in lengths:
-            start_time = time()
-            p, w = run(length=length, max_iter=100, params={"ETA_MEM": 0.8, "ETA_DET": 0.7, "P_D": 10**-6, "ORBITAL_HEIGHT": orbital_heights[idx], "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=cutoff_time, num_memories=20, first_satellite_ground_dist_multiplier=0, return_world=True)
-            df = p.data
-            keys[cutoff_time] += [standard_bipartite_evaluation(df)[2]]
-            end_times[cutoff_time] += [p.time_list[-1]]
-            # w.event_queue.print_stats()
-            # if keys[-1] < threshold:
-            #     keys[-1] = 0
-            print(f"length={length} finished after {(time()-start_time):.2f} seconds.")
-
-    import matplotlib.pyplot as plt
-    for cutoff_time in cutoff_times:
-        plt.plot(lengths, keys[cutoff_time], label=f"{cutoff_time:.2f}")
-    plt.grid()
-    plt.yscale("log")
-    plt.legend()
-    # plt.ylim(0, 1)
-    plt.title(f"Fourlink with orbital height {orbital_heights[idx]/(1e3)}km, theta = 2e-6rad, #memories = 20")
-    plt.xlabel(f"Distance (max {lengths[-1]/(1e3)}km)")
-    plt.ylabel(f"Keyrate")
-    plt.show()
-
-    for cutoff_time in cutoff_times:
-        plt.plot(lengths, end_times[cutoff_time], label=f"{cutoff_time:.2f}")
-    plt.legend()
-    plt.grid()
-    plt.title(f"Fourlink with orbital height {orbital_heights[idx]/(1e3)}km, theta = 2e-6rad, #memories = 20")
-    plt.xlabel(f"Distance (max {lengths[-1]/(1e3)}km)")
-    plt.ylabel(f"Time after 240 long distance pairs.")
-    plt.show()
+    start_time = time()
+    run(length=250e3, max_iter=100, params={"ETA_MEM": 0.8, "ETA_DET": 0.7, "P_D": 10**-6, "T_DP": 0.1, "ORBITAL_HEIGHT": 400e3, "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=0.01, num_memories=1000, first_satellite_ground_dist_multiplier=0)
+    print(f"This took {(time() - start_time):.2f} seconds.")
+    # # orbital_heights = [400e3, 1250e3, 4000e3, 12000e3, 36000e3]
+    # orbital_heights = [300e3, 400e3, 500e3, 600e3, 800e3, 1250e3, 1500e3, 2000e3]
+    # horizons = [2 * np.arccos(R_E/(R_E + orbit_height))*R_E  for orbit_height in orbital_heights]
+    # # print([horizon/1e3 for horizon in horizons])
+    # idx = -1
+    # threshold = 10e-1
+    # # lengths = np.linspace(100e3, horizons[idx], num=16)
+    # lengths= np.linspace(250e3, 4000e3, num=20)
+    # # lengths = [horizons[-1]]
+    # cutoff_times = [0.1, 0.2, 0.3, 0.4, 0.5]
+    # from time import time
+    # from libs.aux_functions import standard_bipartite_evaluation
+    # keys = {}
+    # end_times = {}
+    # for cutoff_time in cutoff_times:
+    #     keys[cutoff_time] = []
+    #     end_times[cutoff_time] = []
+    #     for length in lengths:
+    #         start_time = time()
+    #         p, w = run(length=length, max_iter=100, params={"ETA_MEM": 0.8, "ETA_DET": 0.7, "P_D": 10**-6, "ORBITAL_HEIGHT": orbital_heights[idx], "SENDER_APERTURE_RADIUS": 0.15, "RECEIVER_APERTURE_RADIUS": 0.50, "DIVERGENCE_THETA": 2e-6}, cutoff_time=cutoff_time, num_memories=20, first_satellite_ground_dist_multiplier=0, return_world=True)
+    #         df = p.data
+    #         keys[cutoff_time] += [standard_bipartite_evaluation(df)[2]]
+    #         end_times[cutoff_time] += [p.time_list[-1]]
+    #         # w.event_queue.print_stats()
+    #         # if keys[-1] < threshold:
+    #         #     keys[-1] = 0
+    #         print(f"length={length} finished after {(time()-start_time):.2f} seconds.")
+    #
+    # import matplotlib.pyplot as plt
+    # for cutoff_time in cutoff_times:
+    #     plt.plot(lengths, keys[cutoff_time], label=f"{cutoff_time:.2f}")
+    # plt.grid()
+    # plt.yscale("log")
+    # plt.legend()
+    # # plt.ylim(0, 1)
+    # plt.title(f"Fourlink with orbital height {orbital_heights[idx]/(1e3)}km, theta = 2e-6rad, #memories = 20")
+    # plt.xlabel(f"Distance (max {lengths[-1]/(1e3)}km)")
+    # plt.ylabel(f"Keyrate")
+    # plt.show()
+    #
+    # for cutoff_time in cutoff_times:
+    #     plt.plot(lengths, end_times[cutoff_time], label=f"{cutoff_time:.2f}")
+    # plt.legend()
+    # plt.grid()
+    # plt.title(f"Fourlink with orbital height {orbital_heights[idx]/(1e3)}km, theta = 2e-6rad, #memories = 20")
+    # plt.xlabel(f"Distance (max {lengths[-1]/(1e3)}km)")
+    # plt.ylabel(f"Time after 240 long distance pairs.")
+    # plt.show()
