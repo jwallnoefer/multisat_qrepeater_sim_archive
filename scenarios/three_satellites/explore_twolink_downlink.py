@@ -60,167 +60,272 @@ base_params = {"P_LINK": P_LINK,
 
 
 if __name__ == "__main__":
+    case_number = int(sys.argv[1])
     output_path = os.path.join("results", "three_satellites", "twolink_downlink", "explore")
     assert_dir(output_path)
-    # Case 0: The big plot - x-axis: length, thing we want to vary: satellite position
-    case_number = 0
-    total_begin_time = time()
-    params = dict(base_params)
-    params["DIVERGENCE_THETA"] = 2e-6
-    params["T_DP"] = 100e-3
-    num_memories = 1000
-    cutoff_time = 0.01
-    length_list = np.linspace(0, 8800e3, num=96)
-    first_satellite_multipliers = np.linspace(0, 0.5, num=9)
-    plot_info = {}
-    custom_length_lists = {}
-    for satellite_multiplier in first_satellite_multipliers:
-        print("%=====================%")
-        print(f"{satellite_multiplier=}")
-        keys = []
-        run_times = []
-        for i, length in enumerate(length_list):
-            start_time = time()
-            print("----------")
-            p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
-            key_per_time = standard_bipartite_evaluation(p.data)[2]
-            run_time = (time()-start_time)
-            print(f"{length=} finished in {run_time:.2f} seconds.")
-            print(f"{key_per_time=}")
-            print("Event stats:")
-            w.event_queue.print_stats()
-            keys += [key_per_time]
-            run_times +=[run_time]
-            if key_per_time < 0:
-                break
-        plot_info[satellite_multiplier] = {}
-        plot_info[satellite_multiplier]["lengths"] = length_list[:i+1]
-        custom_length_lists[satellite_multiplier] = length_list[:i+1]
-        plot_info[satellite_multiplier]["keys"] = keys
-        plot_info[satellite_multiplier]["run_times"] = run_times
-    # save custom length_lists
-    with open(os.path.join(output_path, f"custom_lengths_{case_number}.pickle"), "wb") as f:
-        pickle.dump(custom_length_lists, f)
-    print("%=======================================%")
-    print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
-    # now plot keys
-    for satellite_multiplier in first_satellite_multipliers:
-        x = plot_info[satellite_multiplier]["lengths"]
-        y = plot_info[satellite_multiplier]["keys"]
-        plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
-    plt.yscale("log")
-    plt.xlabel("Ground distance")
-    plt.ylabel("Key rate")
-    plt.grid()
-    plt.legend()
-    plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
-    plt.show()
-    # now plot run_times
-    for satellite_multiplier in first_satellite_multipliers:
-        x = plot_info[satellite_multiplier]["lengths"]
-        y = plot_info[satellite_multiplier]["run_times"]
-        plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
-    plt.xlabel("Ground distance")
-    plt.ylabel("run time [s]")
-    plt.grid()
-    plt.legend()
-    plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
-    plt.show()
-
-
-    #
-    #
-    # result_path = os.path.join("results", "three_satellites", "twolink_downlink")
-    # num_processes = int(sys.argv[2])
-    # if int(sys.argv[1]) == 0:
-    #     out_path = os.path.join(result_path, "sat_positions")
-    #     params = dict(base_params)
-    #     params["DIVERGENCE_THETA"] = 2e-6
-    #     params["T_DP"] = 100e-3
-    #     num_memories = 1000
-    #     length_list = np.linspace(0, 8800e3, num=96)
-    #     max_iter = 1e3
-    #     cutoff_multiplier = 0.1
-    #     first_satellite_multipliers = np.linspace(0, 0.5, num=9)
-    #     first_satellite_multipliers = first_satellite_multipliers[4:]
-    #     # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-    #     length_cutoffs = [7000e3, 6000e3, 5500e3, 5000e3, 3800e3]
-    #     length_starts = [4400e3] * 4 + [3620e3]
-    #     custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
-    #     result = {}
-    #     start_time = time()
-    #     with Pool(num_processes) as pool:
-    #         for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-    #             num_calls = len(lens)
-    #             aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
-    #             result[multiplier] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
-    #         pool.close()
-    #         for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-    #             data_series = pd.Series(result[multiplier].get(), index=lens)
-    #             output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
-    #             save_result(data_series=data_series, output_path=output_path, mode="append")
-    #     print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-    # elif int(sys.argv[1]) in [1, 2, 3, 4]:
-    #     out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
-    #     thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
-    #     params = dict(base_params)
-    #     params["DIVERGENCE_THETA"] = thetas[int(sys.argv[1])]
-    #     params["T_DP"] = 100e-3
-    #     num_memories = 1000
-    #     length_list = np.linspace(0, 8800e3, num=96)
-    #     max_iter = 1e3
-    #     cutoff_multiplier = 0.1
-    #     first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
-    #     first_satellite_multipliers = first_satellite_multipliers[2:]
-    #     # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-    #     cutoff_dict = {1: [4400e3, 4400e3],
-    #                    2: [4400e3, 4400e3],
-    #                    3: [3000e3] * 2,
-    #                    4: [2200e3] * 2}
-    #     start_dict = {#1: [2200e3] * 4,
-    #                   #2: [2200e3] * 4,
-    #                   3: [2200e3] * 4,
-    #                   # 4: [2200e3, 2200e3, 2200e3, 1390e3]
-    #                   }
-    #     length_cutoffs = cutoff_dict[int(sys.argv[1])]
-    #     length_starts = start_dict[int(sys.argv[1])]
-    #     custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
-    #     result = {}
-    #     start_time = time()
-    #     with Pool(num_processes) as pool:
-    #         for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-    #             num_calls = len(lens)
-    #             aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls, [multiplier] * num_calls)
-    #             result[multiplier] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
-    #         pool.close()
-    #         for multiplier, lens in zip(first_satellite_multipliers, custom_length_lists):
-    #             data_series = pd.Series(result[multiplier].get(), index=lens)
-    #             output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
-    #             save_result(data_series=data_series, output_path=output_path, mode="append")
-    #     print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-    # elif int(sys.argv[1]) in [5, 6]:
-    #     out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
-    #     memories = {5: 100, 6: 1000}
-    #     params = dict(base_params)
-    #     params["DIVERGENCE_THETA"] = 2e-6
-    #     first_satellite_multiplier = 0.0
-    #     num_memories = memories[int(sys.argv[1])]
-    #     dephasing_times = [10e-3, 50e-3, 100e-3]
-    #     length_list = np.linspace(0, 8800e3, num=96)
-    #     max_iter = 1e3
-    #     cutoff_multiplier = 0.1
-    #     result = {}
-    #     start_time = time()
-    #     with Pool(num_processes) as pool:
-    #         for t_dp in dephasing_times:
-    #             t_params = dict(params)
-    #             t_params["T_DP"] = t_dp
-    #             num_calls = len(length_list)
-    #             aux_list = zip(length_list, [max_iter] * num_calls, [t_params] * num_calls, [cutoff_multiplier * t_params["T_DP"]] * num_calls, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
-    #             result[t_dp] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
-    #         pool.close()
-    #         for t_dp in dephasing_times:
-    #             data_series = pd.Series(result[t_dp].get(), index=length_list)
-    #             output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
-    #             save_result(data_series=data_series, output_path=output_path)#, mode="append")
-    #     print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    if case_number == 0:
+        # Case 0: The big plot - x-axis: length, thing we want to vary: satellite position
+        total_begin_time = time()
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = 2e-6
+        params["T_DP"] = 100e-3
+        num_memories = 1000
+        # cutoff_time = 0.01
+        length_list = np.linspace(0, 8800e3, num=96)
+        first_satellite_multipliers = np.linspace(0, 0.5, num=6)
+        plot_info = {}
+        custom_length_lists = {}
+        for satellite_multiplier in first_satellite_multipliers:
+            print("%=====================%")
+            print(f"{satellite_multiplier=}")
+            keys = []
+            run_times = []
+            for i, length in enumerate(length_list):
+                start_time = time()
+                print("----------")
+                cutoff_time = max(0.01, 4 * length / C)
+                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                key_per_time = standard_bipartite_evaluation(p.data)[2]
+                run_time = (time()-start_time)
+                print(f"{length=} finished in {run_time:.2f} seconds.")
+                print(f"{key_per_time=}")
+                print("Event stats:")
+                w.event_queue.print_stats()
+                keys += [key_per_time]
+                run_times +=[run_time]
+                if key_per_time < 1e-1:
+                    break
+            plot_info[satellite_multiplier] = {}
+            plot_info[satellite_multiplier]["lengths"] = length_list[:i+1]
+            custom_length_lists[satellite_multiplier] = length_list[:i+1]
+            plot_info[satellite_multiplier]["keys"] = keys
+            plot_info[satellite_multiplier]["run_times"] = run_times
+        # save custom length_lists
+        with open(os.path.join(output_path, f"custom_lengths_{case_number}.pickle"), "wb") as f:
+            pickle.dump(custom_length_lists, f)
+        print("%=======================================%")
+        print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
+        # now plot keys
+        for satellite_multiplier in first_satellite_multipliers:
+            x = plot_info[satellite_multiplier]["lengths"]
+            y = plot_info[satellite_multiplier]["keys"]
+            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+        plt.yscale("log")
+        plt.xlabel("Ground distance")
+        plt.ylabel("Key rate")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
+        plt.show()
+        # now plot run_times
+        for satellite_multiplier in first_satellite_multipliers:
+            x = plot_info[satellite_multiplier]["lengths"]
+            y = plot_info[satellite_multiplier]["run_times"]
+            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+        plt.xlabel("Ground distance")
+        plt.ylabel("run time [s]")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
+        plt.show()
+    elif case_number in [2, 3, 4]:
+        # Case 1: The divergence plot - x-axis: length, thing we want to vary: thetas
+        total_begin_time = time()
+        thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = thetas[case_number]
+        params["T_DP"] = 100e-3
+        num_memories = 1000
+        # cutoff_time = 0.01
+        length_list = np.linspace(0, 8800e3, num=96)
+        first_satellite_multipliers = [0.0, 0.2]
+        plot_info = {}
+        custom_length_lists = {}
+        for satellite_multiplier in first_satellite_multipliers:
+            print("%=====================%")
+            print(f"{satellite_multiplier=}")
+            keys = []
+            run_times = []
+            for i, length in enumerate(length_list):
+                start_time = time()
+                print("----------")
+                cutoff_time = max(0.01, 4 * length / C)
+                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                key_per_time = standard_bipartite_evaluation(p.data)[2]
+                run_time = (time()-start_time)
+                print(f"{length=} finished in {run_time:.2f} seconds.")
+                print(f"{key_per_time=}")
+                print("Event stats:")
+                w.event_queue.print_stats()
+                keys += [key_per_time]
+                run_times +=[run_time]
+                if key_per_time < 1e-1:
+                    break
+            plot_info[satellite_multiplier] = {}
+            plot_info[satellite_multiplier]["lengths"] = length_list[:i+1]
+            custom_length_lists[satellite_multiplier] = length_list[:i+1]
+            plot_info[satellite_multiplier]["keys"] = keys
+            plot_info[satellite_multiplier]["run_times"] = run_times
+        # save custom length_lists
+        with open(os.path.join(output_path, f"custom_lengths_{case_number}.pickle"), "wb") as f:
+            pickle.dump(custom_length_lists, f)
+        print("%=======================================%")
+        print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
+        # now plot keys
+        for satellite_multiplier in first_satellite_multipliers:
+            x = plot_info[satellite_multiplier]["lengths"]
+            y = plot_info[satellite_multiplier]["keys"]
+            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+        plt.yscale("log")
+        plt.xlabel("Ground distance")
+        plt.ylabel("Key rate")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
+        plt.show()
+        # now plot run_times
+        for satellite_multiplier in first_satellite_multipliers:
+            x = plot_info[satellite_multiplier]["lengths"]
+            y = plot_info[satellite_multiplier]["run_times"]
+            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+        plt.xlabel("Ground distance")
+        plt.ylabel("run time [s]")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
+        plt.show()
+    elif case_number in [6]:
+        # Case 2: The memory quality plot - x-axis: length, thing we want to vary: t_dp
+        total_begin_time = time()
+        memories = {5: 100, 6: 1000}
+        num_memories = 1000
+        # cutoff_time = 0.01
+        length_list = np.linspace(0, 8800e3, num=96)
+        first_satellite_multiplier = 0.0
+        dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
+        plot_info = {}
+        custom_length_lists = {}
+        for dephasing_time in dephasing_times:
+            print("%=====================%")
+            print(f"{dephasing_time=}")
+            params = dict(base_params)
+            params["DIVERGENCE_THETA"] = 5e-6
+            params["T_DP"] = dephasing_time
+            keys = []
+            run_times = []
+            for i, length in enumerate(length_list):
+                start_time = time()
+                print("----------")
+                cutoff_time = max(0.1 * dephasing_time, 4 * length / C)
+                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                key_per_time = standard_bipartite_evaluation(p.data)[2]
+                run_time = (time()-start_time)
+                print(f"{length=} finished in {run_time:.2f} seconds.")
+                print(f"{key_per_time=}")
+                print("Event stats:")
+                w.event_queue.print_stats()
+                keys += [key_per_time]
+                run_times +=[run_time]
+                if key_per_time < 1e-1:
+                    break
+            plot_info[dephasing_time] = {}
+            plot_info[dephasing_time]["lengths"] = length_list[:i+1]
+            custom_length_lists[dephasing_time] = length_list[:i+1]
+            plot_info[dephasing_time]["keys"] = keys
+            plot_info[dephasing_time]["run_times"] = run_times
+        # save custom length_lists
+        with open(os.path.join(output_path, f"custom_lengths_{case_number}.pickle"), "wb") as f:
+            pickle.dump(custom_length_lists, f)
+        print("%=======================================%")
+        print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
+        # now plot keys
+        for dephasing_time in dephasing_times:
+            x = plot_info[dephasing_time]["lengths"]
+            y = plot_info[dephasing_time]["keys"]
+            plt.scatter(x, y, s=10, label=f"{dephasing_time=}")
+        plt.yscale("log")
+        plt.xlabel("Ground distance")
+        plt.ylabel("Key rate")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
+        plt.show()
+        # now plot run_times
+        for dephasing_time in dephasing_times:
+            x = plot_info[dephasing_time]["lengths"]
+            y = plot_info[dephasing_time]["run_times"]
+            plt.scatter(x, y, s=10, label=f"{dephasing_time=}")
+        plt.xlabel("Ground distance")
+        plt.ylabel("run time [s]")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
+        plt.show()
+    elif case_number == 7:
+        # Case 2: The memory quality plot - x-axis: length, thing we want to vary: t_dp
+        total_begin_time = time()
+        memories = {5: 100, 6: 1000}
+        num_memories = 1000
+        # cutoff_time = 0.01
+        length_list = np.linspace(0, 8800e3, num=96)
+        first_satellite_multiplier = 0.0
+        orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
+        plot_info = {}
+        custom_length_lists = {}
+        for orbital_height in orbital_heights:
+            print("%=====================%")
+            print(f"{orbital_height=}")
+            params = dict(base_params)
+            params["DIVERGENCE_THETA"] = 2e-6
+            params["T_DP"] = 100e-3
+            params["ORBITAL_HEIGHT"] = orbital_height
+            keys = []
+            run_times = []
+            for i, length in enumerate(length_list):
+                start_time = time()
+                print("----------")
+                cutoff_time = max(0.01, 4 * length / C)
+                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                key_per_time = standard_bipartite_evaluation(p.data)[2]
+                run_time = (time()-start_time)
+                print(f"{length=} finished in {run_time:.2f} seconds.")
+                print(f"{key_per_time=}")
+                print("Event stats:")
+                w.event_queue.print_stats()
+                keys += [key_per_time]
+                run_times +=[run_time]
+                if key_per_time < 1e-1:
+                    break
+            plot_info[orbital_height] = {}
+            plot_info[orbital_height]["lengths"] = length_list[:i+1]
+            custom_length_lists[orbital_height] = length_list[:i+1]
+            plot_info[orbital_height]["keys"] = keys
+            plot_info[orbital_height]["run_times"] = run_times
+        # save custom length_lists
+        with open(os.path.join(output_path, f"custom_lengths_{case_number}.pickle"), "wb") as f:
+            pickle.dump(custom_length_lists, f)
+        print("%=======================================%")
+        print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
+        # now plot keys
+        for orbital_height in orbital_heights:
+            x = plot_info[orbital_height]["lengths"]
+            y = plot_info[orbital_height]["keys"]
+            plt.scatter(x, y, s=10, label=f"{orbital_height=}")
+        plt.yscale("log")
+        plt.xlabel("Ground distance")
+        plt.ylabel("Key rate")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
+        plt.show()
+        # now plot run_times
+        for orbital_height in orbital_heights:
+            x = plot_info[orbital_height]["lengths"]
+            y = plot_info[orbital_height]["run_times"]
+            plt.scatter(x, y, s=10, label=f"{orbital_height=}")
+        plt.xlabel("Ground distance")
+        plt.ylabel("run time [s]")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
+        plt.show()
