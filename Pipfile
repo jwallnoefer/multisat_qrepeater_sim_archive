@@ -9,6 +9,8 @@ pandas = "*"
 matplotlib = "*"
 
 [dev-packages]
+pycairo = "*"
+pygobject = "*"
 
 [requires]
 python_version = "3.8"
