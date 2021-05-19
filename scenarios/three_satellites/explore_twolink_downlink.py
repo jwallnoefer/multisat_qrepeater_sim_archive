@@ -198,7 +198,7 @@ if __name__ == "__main__":
         # Case 2: The memory quality plot - x-axis: length, thing we want to vary: t_dp
         total_begin_time = time()
         memories = {5: 100, 6: 1000}
-        num_memories = 1000
+        num_memories = memories[case_number]
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
         satellite_multiplier = 0.0
