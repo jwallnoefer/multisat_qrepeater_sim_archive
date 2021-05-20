@@ -77,7 +77,7 @@ if __name__ == "__main__":
         custom_length_lists = {}
         for satellite_multiplier in first_satellite_multipliers:
             print("%=====================%")
-            print(f"{satellite_multiplier=}")
+            print(f"satellite_multiplier={satellite_multiplier}")
             keys = []
             run_times = []
             for i, length in enumerate(length_list):
@@ -87,8 +87,8 @@ if __name__ == "__main__":
                 p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
-                print(f"{length=} finished in {run_time:.2f} seconds.")
-                print(f"{key_per_time=}")
+                print(f"length={length} finished in {run_time:.2f} seconds.")
+                print(f"key_per_time={key_per_time}")
                 print("Event stats:")
                 w.event_queue.print_stats()
                 keys += [key_per_time]
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         for satellite_multiplier in first_satellite_multipliers:
             x = plot_info[satellite_multiplier]["lengths"]
             y = plot_info[satellite_multiplier]["keys"]
-            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+            plt.scatter(x, y, s=10, label=f"satellite_multiplier={satellite_multiplier}")
         plt.yscale("log")
         plt.xlabel("Ground distance")
         plt.ylabel("Key rate")
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         for satellite_multiplier in first_satellite_multipliers:
             x = plot_info[satellite_multiplier]["lengths"]
             y = plot_info[satellite_multiplier]["run_times"]
-            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+            plt.scatter(x, y, s=10, label=f"satellite_multiplier={satellite_multiplier}")
         plt.xlabel("Ground distance")
         plt.ylabel("run time [s]")
         plt.grid()
@@ -143,7 +143,7 @@ if __name__ == "__main__":
         custom_length_lists = {}
         for satellite_multiplier in first_satellite_multipliers:
             print("%=====================%")
-            print(f"{satellite_multiplier=}")
+            print(f"satellite_multiplier={satellite_multiplier}")
             keys = []
             run_times = []
             for i, length in enumerate(length_list):
@@ -153,8 +153,8 @@ if __name__ == "__main__":
                 p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
-                print(f"{length=} finished in {run_time:.2f} seconds.")
-                print(f"{key_per_time=}")
+                print(f"length={length} finished in {run_time:.2f} seconds.")
+                print(f"key_per_time={key_per_time}")
                 print("Event stats:")
                 w.event_queue.print_stats()
                 keys += [key_per_time]
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         for satellite_multiplier in first_satellite_multipliers:
             x = plot_info[satellite_multiplier]["lengths"]
             y = plot_info[satellite_multiplier]["keys"]
-            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+            plt.scatter(x, y, s=10, label=f"satellite_multiplier={satellite_multiplier}")
         plt.yscale("log")
         plt.xlabel("Ground distance")
         plt.ylabel("Key rate")
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         for satellite_multiplier in first_satellite_multipliers:
             x = plot_info[satellite_multiplier]["lengths"]
             y = plot_info[satellite_multiplier]["run_times"]
-            plt.scatter(x, y, s=10, label=f"{satellite_multiplier=}")
+            plt.scatter(x, y, s=10, label=f"satellite_multiplier={satellite_multiplier}")
         plt.xlabel("Ground distance")
         plt.ylabel("run time [s]")
         plt.grid()
@@ -207,7 +207,7 @@ if __name__ == "__main__":
         custom_length_lists = {}
         for dephasing_time in dephasing_times:
             print("%=====================%")
-            print(f"{dephasing_time=}")
+            print(f"dephasing_time={dephasing_time}")
             params = dict(base_params)
             params["DIVERGENCE_THETA"] = 5e-6
             params["T_DP"] = dephasing_time
@@ -220,8 +220,8 @@ if __name__ == "__main__":
                 p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
-                print(f"{length=} finished in {run_time:.2f} seconds.")
-                print(f"{key_per_time=}")
+                print(f"length={length} finished in {run_time:.2f} seconds.")
+                print(f"key_per_time={key_per_time}")
                 print("Event stats:")
                 w.event_queue.print_stats()
                 keys += [key_per_time]
@@ -242,7 +242,7 @@ if __name__ == "__main__":
         for dephasing_time in dephasing_times:
             x = plot_info[dephasing_time]["lengths"]
             y = plot_info[dephasing_time]["keys"]
-            plt.scatter(x, y, s=10, label=f"{dephasing_time=}")
+            plt.scatter(x, y, s=10, label=f"dephasing_time={dephasing_time}")
         plt.yscale("log")
         plt.xlabel("Ground distance")
         plt.ylabel("Key rate")
@@ -254,7 +254,7 @@ if __name__ == "__main__":
         for dephasing_time in dephasing_times:
             x = plot_info[dephasing_time]["lengths"]
             y = plot_info[dephasing_time]["run_times"]
-            plt.scatter(x, y, s=10, label=f"{dephasing_time=}")
+            plt.scatter(x, y, s=10, label=f"dephasing_time={dephasing_time}")
         plt.xlabel("Ground distance")
         plt.ylabel("run time [s]")
         plt.grid()
@@ -274,7 +274,7 @@ if __name__ == "__main__":
         custom_length_lists = {}
         for orbital_height in orbital_heights:
             print("%=====================%")
-            print(f"{orbital_height=}")
+            print(f"orbital_height={orbital_height}")
             params = dict(base_params)
             params["DIVERGENCE_THETA"] = 2e-6
             params["T_DP"] = 100e-3
@@ -288,8 +288,8 @@ if __name__ == "__main__":
                 p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
-                print(f"{length=} finished in {run_time:.2f} seconds.")
-                print(f"{key_per_time=}")
+                print(f"length={length} finished in {run_time:.2f} seconds.")
+                print(f"key_per_time={key_per_time}")
                 print("Event stats:")
                 w.event_queue.print_stats()
                 keys += [key_per_time]
@@ -310,7 +310,7 @@ if __name__ == "__main__":
         for orbital_height in orbital_heights:
             x = plot_info[orbital_height]["lengths"]
             y = plot_info[orbital_height]["keys"]
-            plt.scatter(x, y, s=10, label=f"{orbital_height=}")
+            plt.scatter(x, y, s=10, label=f"orbital_height={orbital_height}")
         plt.yscale("log")
         plt.xlabel("Ground distance")
         plt.ylabel("Key rate")
@@ -322,7 +322,7 @@ if __name__ == "__main__":
         for orbital_height in orbital_heights:
             x = plot_info[orbital_height]["lengths"]
             y = plot_info[orbital_height]["run_times"]
-            plt.scatter(x, y, s=10, label=f"{orbital_height=}")
+            plt.scatter(x, y, s=10, label=f"orbital_height={orbital_height}")
         plt.xlabel("Ground distance")
         plt.ylabel("run time [s]")
         plt.grid()
