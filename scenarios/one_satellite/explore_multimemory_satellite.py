@@ -64,7 +64,7 @@ if __name__ == "__main__":
             start_time = time()
             print("----------")
             cutoff_time = max(0.01, 4 * length / C)
-            p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, return_world=True)
+            p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, return_world=True)
             key_per_time = standard_bipartite_evaluation(p.data)[2]
             run_time = (time()-start_time)
             print(f"{length=} finished in {run_time:.2f} seconds.")
@@ -128,7 +128,7 @@ if __name__ == "__main__":
                 start_time = time()
                 print("----------")
                 cutoff_time = max(0.1 * dephasing_time, 4 * length / C)
-                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, return_world=True)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
                 print(f"{length=} finished in {run_time:.2f} seconds.")
@@ -194,7 +194,7 @@ if __name__ == "__main__":
                 start_time = time()
                 print("----------")
                 cutoff_time = max(0.01, 4 * length / C)
-                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, return_world=True)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
                 print(f"{length=} finished in {run_time:.2f} seconds.")
