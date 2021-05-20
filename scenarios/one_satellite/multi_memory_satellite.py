@@ -117,7 +117,7 @@ class MultiMemoryProtocol(TwoLinkProtocol):
             self.check()
 
 
-def run(length, max_iter, params, cutoff_time=None, num_memories=1, mode="sim"):
+def run(length, max_iter, params, cutoff_time=None, num_memories=1, mode="sim", return_world=False):
     # unpack the parameters
     try:
         P_LINK = params["P_LINK"]
@@ -229,7 +229,10 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, mode="sim"):
         protocol.check()
         world.event_queue.resolve_next_event()
 
-    return protocol
+    if return_world:
+        return protocol, world
+    else:
+        return protocol
 
 
 if __name__ == "__main__":
