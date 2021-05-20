@@ -7,6 +7,7 @@ from time import time
 from multiprocessing import Pool
 import pandas as pd
 from consts import SPEED_OF_LIGHT_IN_VACCUM as C
+import pickle
 
 
 # # # values taken from https://arxiv.org/abs/2006.10636
@@ -44,53 +45,96 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories):
 
 if __name__ == "__main__":
     # run with our standardized parameter set
+    case_number = int(sys.argv[1])
+    num_processes = int(sys.argv[2])
     result_path = os.path.join("results", "one_satellite")
-    if int(sys.argv[1]) in [1, 2, 3, 4]:
+    path_to_custom_lengths = os.path.join(result_path, "explore")
+    if case_number in [1, 2, 3, 4]:
         out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
         thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = thetas[int(sys.argv[1])]
+        params["DIVERGENCE_THETA"] = thetas[case_number]
         params["T_DP"] = 100e-3
         num_memories = 1000
         length_list = np.linspace(0, 4400e3, num=96)
-        max_iter = 1e3
+        with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
+            custom_length_list = pickle.load(f)
+        max_iter = 1e5
         cutoff_multiplier = 0.1
-        num_processes = 32
+        min_cutoff_time = cutoff_multiplier * params["T_DP"]
+        cutoff_times = [max(min_cutoff_time, 4 * length / C) for length in custom_length_list]
         # result = {}
         start_time = time()
         with Pool(num_processes) as pool:
-            num_calls = len(length_list)
-            aux_list = zip(length_list, [max_iter] * num_calls, [params] * num_calls, [cutoff_multiplier * params["T_DP"]] * num_calls, [num_memories] * num_calls)
+            num_calls = len(custom_length_list)
+            aux_list = zip(custom_length_list, [max_iter] * num_calls, [params] * num_calls, cutoff_times, [num_memories] * num_calls)
             result = pool.starmap_async(do_the_thing, aux_list)
             pool.close()
-            data_series = pd.Series(result.get(), index=length_list)
+            data_series = pd.Series(result.get(), index=custom_length_list)
             output_path = out_path
             save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-    elif int(sys.argv[1]) in [5, 6]:
+    elif case_number in [5, 6]:
         out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
         memories = {5: 100, 6: 1000}
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 2e-6
-        num_memories = memories[int(sys.argv[1])]
-        dephasing_times = [10e-3, 50e-3, 100e-3]
+        params["DIVERGENCE_THETA"] = 5e-6
+        num_memories = memories[case_number]
+        dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
         length_list = np.linspace(0, 4400e3, num=96)
-        max_iter = 1e3
+        with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
+            custom_length_lists = pickle.load(f)
+        max_iter = 1e5
         cutoff_multiplier = 0.1
-        num_processes = 32
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
             for t_dp in dephasing_times:
                 t_params = dict(params)
                 t_params["T_DP"] = t_dp
-                num_calls = len(length_list)
-                aux_list = zip(length_list, [max_iter] * num_calls, [t_params] * num_calls, [cutoff_multiplier * t_params["T_DP"]] * num_calls, [num_memories] * num_calls)
+                lens = custom_length_lists[t_dp]
+                min_cutoff_time = cutoff_multiplier * t_params["T_DP"]
+                cutoff_times = [max(min_cutoff_time, 4 * length / C) for length in lens]
+                num_calls = len(lens)
+                aux_list = zip(lens, [max_iter] * num_calls, [t_params] * num_calls, cutoff_times, [num_memories] * num_calls)
                 result[t_dp] = pool.starmap_async(do_the_thing, aux_list)
             pool.close()
             for t_dp in dephasing_times:
-                data_series = pd.Series(result[t_dp].get(), index=length_list)
+                lens = custom_length_lists[t_dp]
+                data_series = pd.Series(result[t_dp].get(), index=lens)
                 output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
+                save_result(data_series=data_series, output_path=output_path)#, mode="append")
+        print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    elif case_number == 7:
+        #case 7: varying orbital heights
+        out_path = os.path.join(result_path, "orbital_heights")
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = 2e-6
+        params["T_DP"] = 100e-3
+        num_memories = 1000
+        orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
+        # length_list = np.linspace(0, 8800e3, num=96)
+        with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
+            custom_length_lists = pickle.load(f)
+        max_iter = 1e5
+        cutoff_multiplier = 0.1
+        min_cutoff_time = cutoff_multiplier * params["T_DP"]
+        result = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for h in orbital_heights:
+                h_params = dict(params)
+                h_params["ORBITAL_HEIGHT"] = h
+                lens = custom_length_lists[h]
+                cutoff_times = [max(min_cutoff_time, 4 * length / C) for length in lens]
+                num_calls = len(lens)
+                aux_list = zip(lens, [max_iter] * num_calls, [h_params] * num_calls, cutoff_times, [num_memories] * num_calls)
+                result[h] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
+            pool.close()
+            for h in orbital_heights:
+                lens = custom_length_lists[h]
+                data_series = pd.Series(result[h].get(), index=lens)
+                output_path = os.path.join(out_path, "%d_orbital_height" % int(h / 1000))
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
 
