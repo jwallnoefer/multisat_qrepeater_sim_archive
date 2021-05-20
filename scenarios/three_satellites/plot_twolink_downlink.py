@@ -28,7 +28,7 @@ result_path = os.path.join("results", "three_satellites", "twolink_downlink")
 scenario_str = "3 Satellites, twolink_downlink"
 # first satellite positions
 out_path = os.path.join(result_path, "sat_positions")
-first_satellite_multipliers = np.linspace(0, 0.5, num=9)
+first_satellite_multipliers = np.linspace(0, 0.5, num=6)
 for multiplier in first_satellite_multipliers:
     output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
     try:
@@ -61,8 +61,10 @@ manager.window.maximize()
 plt.show()
 
 # now different thetas
-thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
-first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
+# thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
+thetas = {2: 4e-6, 3: 6e-6, 4: 8e-6}
+# first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
+first_satellite_multipliers = [0.0, 0.2]
 for i, theta in thetas.items():
     out_path = os.path.join(result_path, "divergence_theta", str(i))
     for multiplier in first_satellite_multipliers:
@@ -97,8 +99,9 @@ for i, theta in thetas.items():
     plt.show()
 
 
-memories = {5: 100, 6: 1000}
-dephasing_times = [10e-3, 50e-3, 100e-3]
+# memories = {5: 100, 6: 1000}
+memories = {6: 1000}
+dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
 for i, num_memories in memories.items():
     out_path = os.path.join(result_path, "memories", str(i))
     for t_dp in dephasing_times:
@@ -128,12 +131,49 @@ for i, num_memories in memories.items():
     plt.grid()
     plt.xlabel("ground distance [km]")
     plt.ylabel("key per time [Hz]")
-    plt.title(f"{scenario_str}: theta=2µrad, first_sat_multiplier=0, {num_memories=}")
+    plt.title(f"{scenario_str}: theta=5µrad, first_sat_multiplier=0, {num_memories=}")
     plt.savefig(os.path.join(result_path, f"memories_{num_memories}.png"))
     manager = plt.get_current_fig_manager()
     manager.window.maximize()
     plt.show()
 
+# now do the orbital heights plot
+orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
+out_path = os.path.join(result_path, "orbital_heights")
+for orbital_height in orbital_heights:
+    output_path = os.path.join(out_path, "%d_orbital_height" % int(orbital_height / 1000))
+    try:
+        df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+    except FileNotFoundError:
+        continue
+    x = df.index / 1000
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=np.complex)) / 2
+    # yerr = np.real_if_close(np.array(df["key_per_time_std"], dtype=complex)) / 2
+    plt.scatter(x, y, marker="o", s=10, label=f"orbital_height={int(orbital_height / 1000)}km")
+    # plt.errorbar(x, y, yerr, marker="o", label=f"orbital_height={int(orbital_height / 1000)}km")
+    # # compare to one satellite
+    # path = os.path.join("results", "one_satellite", "memories", str(i), "100_t_dp")
+    # try:
+    #     df = pd.read_csv(os.path.join(path, "result.csv"), index_col=0)
+    #     x = df.index / 1000
+    #     y = np.real_if_close(np.array(df["key_per_time"], dtype=np.complex)) / 2
+    #     plt.scatter(x, y, marker="o", s=10, label="1 Satellite, t_dp=100ms")
+    # except FileNotFoundError:
+    #     pass
+xx = np.linspace(0, 44e5, num=500)
+yy = [e91_rate(i) for i in xx]
+plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
+plt.yscale("log")
+plt.ylim(1e-4, 1e5)
+plt.legend()
+plt.grid()
+plt.xlabel("ground distance [km]")
+plt.ylabel("key per time [Hz]")
+plt.title(f"{scenario_str}: theta=2µrad, first_sat_multiplier=0, num_memories=1000")
+plt.savefig(os.path.join(result_path, f"orbital_heights.png"))
+manager = plt.get_current_fig_manager()
+manager.window.maximize()
+plt.show()
 
 # result_path = os.path.join("results", "three_satellites", "twolink_downlink")
 # for first_satellite_multiplier in np.linspace(0, 0.5, num=9):
