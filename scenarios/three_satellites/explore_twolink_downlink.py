@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 start_time = time()
                 print("----------")
                 cutoff_time = max(0.01, 4 * length / C)
-                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
                 print(f"{length=} finished in {run_time:.2f} seconds.")
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
-        plt.show()
+        plt.close()
         # now plot run_times
         for satellite_multiplier in first_satellite_multipliers:
             x = plot_info[satellite_multiplier]["lengths"]
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
-        plt.show()
+        plt.close()
     elif case_number in [2, 3, 4]:
         # Case 1: The divergence plot - x-axis: length, thing we want to vary: thetas
         total_begin_time = time()
@@ -150,7 +150,7 @@ if __name__ == "__main__":
                 start_time = time()
                 print("----------")
                 cutoff_time = max(0.01, 4 * length / C)
-                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
                 print(f"{length=} finished in {run_time:.2f} seconds.")
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
-        plt.show()
+        plt.close()
         # now plot run_times
         for satellite_multiplier in first_satellite_multipliers:
             x = plot_info[satellite_multiplier]["lengths"]
@@ -193,15 +193,15 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
-        plt.show()
+        plt.close()
     elif case_number in [6]:
         # Case 2: The memory quality plot - x-axis: length, thing we want to vary: t_dp
         total_begin_time = time()
         memories = {5: 100, 6: 1000}
-        num_memories = 1000
+        num_memories = memories[case_number]
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
-        first_satellite_multiplier = 0.0
+        satellite_multiplier = 0.0
         dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
         plot_info = {}
         custom_length_lists = {}
@@ -217,7 +217,7 @@ if __name__ == "__main__":
                 start_time = time()
                 print("----------")
                 cutoff_time = max(0.1 * dephasing_time, 4 * length / C)
-                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
                 print(f"{length=} finished in {run_time:.2f} seconds.")
@@ -249,7 +249,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
-        plt.show()
+        plt.close()
         # now plot run_times
         for dephasing_time in dephasing_times:
             x = plot_info[dephasing_time]["lengths"]
@@ -260,7 +260,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
-        plt.show()
+        plt.close()
     elif case_number == 7:
         # Case 2: The memory quality plot - x-axis: length, thing we want to vary: t_dp
         total_begin_time = time()
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         num_memories = 1000
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
-        first_satellite_multiplier = 0.0
+        satellite_multiplier = 0.0
         orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
         plot_info = {}
         custom_length_lists = {}
@@ -285,7 +285,7 @@ if __name__ == "__main__":
                 start_time = time()
                 print("----------")
                 cutoff_time = max(0.01, 4 * length / C)
-                p, w = run(length=length, max_iter=100, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
                 print(f"{length=} finished in {run_time:.2f} seconds.")
@@ -317,7 +317,7 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
-        plt.show()
+        plt.close()
         # now plot run_times
         for orbital_height in orbital_heights:
             x = plot_info[orbital_height]["lengths"]
@@ -328,4 +328,4 @@ if __name__ == "__main__":
         plt.grid()
         plt.legend()
         plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
-        plt.show()
+        plt.close()
