@@ -70,7 +70,7 @@ if __name__ == "__main__":
     path_to_custom_lengths = os.path.join(result_path, "explore")
     case_number = int(sys.argv[1])
     num_processes = int(sys.argv[2])
-    if case_number == 0:
+    if case_number in [0, 8]:
         out_path = os.path.join(result_path, "sat_positions")
         params = dict(base_params)
         params["DIVERGENCE_THETA"] = 2e-6
@@ -81,6 +81,10 @@ if __name__ == "__main__":
         cutoff_multiplier = 0.1
         min_cutoff_time = cutoff_multiplier * params["T_DP"]
         first_satellite_multipliers = np.linspace(0, 0.5, num=6)
+        if case_number == 0:
+            first_satellite_multipliers = first_satellite_multipliers[::2]
+        elif case_number == 8:
+            first_satellite_multipliers = first_satellite_multipliers[1::2]
         # first_satellite_multipliers = first_satellite_multipliers[4:]
         # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
         # length_cutoffs = [7000e3, 6000e3, 5500e3, 5000e3, 3800e3]
@@ -151,8 +155,8 @@ if __name__ == "__main__":
         out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
         memories = {5: 100, 6: 1000}
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 5e-6
-        first_satellite_multiplier = 0.0
+        params["DIVERGENCE_THETA"] = 2e-6
+        first_satellite_multiplier = 0.2
         num_memories = memories[case_number]
         dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
         # length_list = np.linspace(0, 8800e3, num=96)
@@ -186,7 +190,7 @@ if __name__ == "__main__":
         params = dict(base_params)
         params["DIVERGENCE_THETA"] = 2e-6
         params["T_DP"] = 100e-3
-        first_satellite_multiplier = 0.0
+        first_satellite_multiplier = 0.2
         num_memories = 1000
         orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
         # length_list = np.linspace(0, 8800e3, num=96)
