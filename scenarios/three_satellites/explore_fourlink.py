@@ -201,7 +201,7 @@ if __name__ == "__main__":
         num_memories = memories[case_number]
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
-        satellite_multiplier = 0.0
+        satellite_multiplier = 0.2
         dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
         plot_info = {}
         custom_length_lists = {}
@@ -209,7 +209,7 @@ if __name__ == "__main__":
             print("%=====================%")
             print(f"dephasing_time={dephasing_time}")
             params = dict(base_params)
-            params["DIVERGENCE_THETA"] = 5e-6
+            params["DIVERGENCE_THETA"] = 2e-6
             params["T_DP"] = dephasing_time
             keys = []
             run_times = []
@@ -267,7 +267,7 @@ if __name__ == "__main__":
         num_memories = 1000
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
-        satellite_multiplier = 0.0
+        satellite_multiplier = 0.2
         orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
         plot_info = {}
         custom_length_lists = {}
