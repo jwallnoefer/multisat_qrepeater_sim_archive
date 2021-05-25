@@ -180,6 +180,7 @@ if __name__ == "__main__":
             pool.close()
             for t_dp in dephasing_times:
                 lens = custom_length_lists[t_dp]
+                lens = lens[:-1]
                 data_series = pd.Series(result[t_dp].get(), index=lens)
                 output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
@@ -214,6 +215,7 @@ if __name__ == "__main__":
             pool.close()
             for h in orbital_heights:
                 lens = custom_length_lists[h]
+                lens = lens[:-1]
                 data_series = pd.Series(result[h].get(), index=lens)
                 output_path = os.path.join(out_path, "%d_orbital_height" % int(h / 1000))
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
