@@ -9,20 +9,21 @@ def db(x):
     return 10 * np.log10(x)
 
 
-def e91_rate(length):
+def e91_rate(length, divergence_half_angle=2e-6, orbital_height=400e3):
     R_S = 20e6  # 20 MHz repetition rate
-    eta_tot = e91_eta(length)
+    eta_tot = e91_eta(length, divergence_half_angle=divergence_half_angle, orbital_height=orbital_height)
     return R_S * eta_tot
 
 
-def e91_eta(length):
+def e91_eta(length, divergence_half_angle=2e-6, orbital_height=400e3):
     eta_det = 0.7
-    sat_dist = sat_dist_curved(ground_dist=length / 2, h=400e3)
-    elevation = elevation_curved(ground_dist=length / 2, h=400e3)
+    sat_dist = sat_dist_curved(ground_dist=length / 2, h=orbital_height)
+    elevation = elevation_curved(ground_dist=length / 2, h=orbital_height)
     eta_tot = (eta_det**2
-               * eta_dif(distance=sat_dist, divergence_half_angle=10e-6, sender_aperture_radius=0.15, receiver_aperture_radius=0.5)**2
+               * eta_dif(distance=sat_dist, divergence_half_angle=divergence_half_angle, sender_aperture_radius=0.15, receiver_aperture_radius=0.5)**2
                * eta_atm(elevation=elevation)**2)
     return eta_tot
+
 
 
 result_path = os.path.join("results", "one_satellite")
@@ -42,7 +43,7 @@ xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
 plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
 plt.yscale("log")
-plt.ylim(1e-4, 1e5)
+# plt.ylim(1e-4, 1e5)
 plt.legend()
 plt.grid()
 plt.xlabel("ground distance [km]")
@@ -52,8 +53,9 @@ manager = plt.get_current_fig_manager()
 manager.window.maximize()
 plt.show()
 
-memories = {5: 100, 6: 1000}
-dephasing_times = [10e-3, 50e-3, 100e-3]
+# memories = {5: 100, 6: 1000}
+memories = {6: 1000}
+dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
 for i, num_memories in memories.items():
     out_path = os.path.join(result_path, "memories", str(i))
     for t_dp in dephasing_times:
@@ -78,6 +80,34 @@ for i, num_memories in memories.items():
     manager = plt.get_current_fig_manager()
     manager.window.maximize()
     plt.show()
+
+
+# now orbital_heights
+orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
+out_path = os.path.join(result_path, "orbital_heights")
+for orbital_height in orbital_heights:
+    output_path = os.path.join(out_path, "%d_orbital_height" % int(orbital_height / 1000))
+    try:
+        df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+    except FileNotFoundError:
+        continue
+    x = df.index / 1000
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=np.complex)) / 2
+    plt.scatter(x, y, marker="o", s=10, label=f"h={orbital_height / 1e3}km")
+xx = np.linspace(0, 44e5, num=500)
+yy = [e91_rate(i) for i in xx]
+plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
+plt.yscale("log")
+plt.ylim(1e-4, 1e5)
+plt.legend()
+plt.grid()
+plt.xlabel("ground distance [km]")
+plt.ylabel("key per time [Hz]")
+plt.title(f"{scenario_str}: theta=2µrad, {num_memories=}")
+manager = plt.get_current_fig_manager()
+manager.window.maximize()
+plt.show()
+
 
 # result_path = os.path.join("results", "multimemory_satellite_cutoff")
 # for cutoff_multiplier in [0.001, 0.005, 0.010, 0.020, 0.030, 0.050, 0.100, 0.250, 0.500]:
