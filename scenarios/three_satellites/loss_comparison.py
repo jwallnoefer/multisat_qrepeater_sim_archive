@@ -6,6 +6,11 @@ from consts import ETA_ATM_PI_HALF_780_NM
 from libs.aux_functions import distance
 
 
+colors_rgb = [(86, 180, 233), (230, 159, 0), (204, 121, 167), (240, 228, 66),
+              (0, 158, 115), (213, 94, 0), (0, 114, 178), (0, 0, 0)]
+colors = [tuple((i / 255.0 for i in seq)) for seq in colors_rgb]
+
+
 def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius):
     # calculated by simple geometry, because gaussian effects do not matter much
     x = sender_aperture_radius + distance * np.tan(divergence_half_angle)
@@ -53,6 +58,7 @@ def loss_one_satellite(total_ground_distance, orbital_height):
         * eta_dif(sat_dist_curved(total_ground_distance / 2, orbital_height), divergence_half_angle, sender_aperture_radius, receiver_aperture_radius)
     return 1 / eta
 
+
 def loss_three_satellites(total_ground_distance, orbital_height, first_satellite_multiplier):
     eta_ground = eta_atm(elevation_curved(total_ground_distance * first_satellite_multiplier, orbital_height)) \
                * eta_dif(sat_dist_curved(total_ground_distance * first_satellite_multiplier, orbital_height), divergence_half_angle, sender_aperture_radius, receiver_aperture_radius)
@@ -73,13 +79,13 @@ first_sat_multipliers = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
 ys = {}
 for first_sat_multiplier in first_sat_multipliers:
     ys[first_sat_multiplier] = [db(loss_three_satellites(total_ground_distance=l, orbital_height=orbital_height, first_satellite_multiplier=first_sat_multiplier)) for l in ground_distances]
-plt.plot(ground_distances / 1000, y1, label="one_sat")
-for first_sat_multiplier in first_sat_multipliers:
-    plt.plot(ground_distances / 1000, ys[first_sat_multiplier], label=f"multiplier={first_sat_multiplier}")
+# plt.plot(ground_distances / 1000, y1, label="one_sat")
+for first_sat_multiplier, color in zip(first_sat_multipliers, colors):
+    plt.plot(ground_distances / 1000, ys[first_sat_multiplier], label=f"multiplier={first_sat_multiplier}", c=color)
 plt.grid()
-plt.legend()
+# plt.legend()
 plt.xlabel("ground_distance [km]")
 plt.ylabel("channel loss [dB]")
 plt.ylim(0, 60)
-plt.savefig(os.path.join("results", "three_satellites", "loss_comparison.png"))
+plt.savefig(os.path.join("results", "three_satellites", "loss_comparison.pdf"))
 plt.show()
