@@ -94,7 +94,8 @@ if __name__ == "__main__":
             custom_length_lists = pickle.load(f)
         custom_length_lists = [custom_length_lists[key][:-1] for key in first_satellite_multipliers]
         # remove last two for particularly tricky case
-        custom_length_lists[first_satellite_multipliers[-1]] = custom_length_lists[first_satellite_multipliers[-1]][:-2]
+        if case_number == 8:
+            custom_length_lists[-1] = custom_length_lists[-1][:-2]
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
