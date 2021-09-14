@@ -162,6 +162,7 @@ if __name__ == "__main__":
         # length_list = np.linspace(0, 8800e3, num=96)
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
+        custom_length_lists = [custom_length_lists[key][:-3] for key in first_satellite_multipliers]
         max_iter = 1e4
         cutoff_multiplier = 0.1
         result = {}
