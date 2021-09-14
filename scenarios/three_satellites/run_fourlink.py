@@ -92,7 +92,9 @@ if __name__ == "__main__":
         # custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
-        custom_length_lists = [custom_length_lists[key][:-3] for key in first_satellite_multipliers]
+        custom_length_lists = [custom_length_lists[key][:-1] for key in first_satellite_multipliers]
+        # remove last two for particularly tricky case
+        custom_length_lists[first_satellite_multipliers[-1]] = custom_length_lists[first_satellite_multipliers[-1]][:-2]
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
@@ -136,7 +138,7 @@ if __name__ == "__main__":
         # custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
-        custom_length_lists = [custom_length_lists[key][:-3] for key in first_satellite_multipliers]
+        custom_length_lists = [custom_length_lists[key][:-1] for key in first_satellite_multipliers]
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
@@ -162,7 +164,7 @@ if __name__ == "__main__":
         # length_list = np.linspace(0, 8800e3, num=96)
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
-        custom_length_lists = [custom_length_lists[key][:-3] for key in first_satellite_multipliers]
+        custom_length_lists = [custom_length_lists[key][:-1] for key in first_satellite_multipliers]
         max_iter = 1e4
         cutoff_multiplier = 0.1
         result = {}
@@ -198,7 +200,7 @@ if __name__ == "__main__":
         # length_list = np.linspace(0, 8800e3, num=96)
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
-        custom_length_lists = [custom_length_lists[key][:-3] for key in first_satellite_multipliers]
+        custom_length_lists = [custom_length_lists[key][:-1] for key in first_satellite_multipliers]
         max_iter = 1e4
         cutoff_multiplier = 0.1
         min_cutoff_time = cutoff_multiplier * params["T_DP"]
