@@ -202,14 +202,14 @@ if __name__ == "__main__":
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
         satellite_multiplier = 0.0
-        dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
+        dephasing_times = [1e-4, 1e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0]
         plot_info = {}
         custom_length_lists = {}
         for dephasing_time in dephasing_times:
             print("%=====================%")
             print(f"{dephasing_time=}")
             params = dict(base_params)
-            params["DIVERGENCE_THETA"] = 5e-6
+            params["DIVERGENCE_THETA"] = 2e-6
             params["T_DP"] = dephasing_time
             keys = []
             run_times = []

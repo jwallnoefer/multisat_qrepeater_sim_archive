@@ -151,7 +151,7 @@ if __name__ == "__main__":
         out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
         memories = {5: 100, 6: 1000}
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 5e-6
+        params["DIVERGENCE_THETA"] = 2e-6
         first_satellite_multiplier = 0.0
         num_memories = memories[case_number]
         dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
