@@ -154,7 +154,7 @@ if __name__ == "__main__":
         params["DIVERGENCE_THETA"] = 2e-6
         first_satellite_multiplier = 0.0
         num_memories = memories[case_number]
-        dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
+        dephasing_times = [2e-3, 3e-3, 4e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0]
         # length_list = np.linspace(0, 8800e3, num=96)
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
