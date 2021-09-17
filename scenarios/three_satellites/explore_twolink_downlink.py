@@ -328,3 +328,70 @@ if __name__ == "__main__":
         plt.legend()
         plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
         plt.close()
+    elif case_number == 8:
+        # varying cutoff_times to prove they are
+        total_begin_time = time()
+        num_memories = 1000
+        # cutoff_time = 0.01
+        length_list = np.linspace(0, 8800e3, num=96)
+        satellite_multiplier = 0.0
+        cutoff_multipliers = [1.0, 0.5, 0.1, 0.05, 0.02]
+        plot_info = {}
+        custom_length_lists = {}
+        for cutoff_multiplier in cutoff_multipliers:
+            print("%=====================%")
+            print(f"{cutoff_multiplier=}")
+            params = dict(base_params)
+            params["DIVERGENCE_THETA"] = 2e-6
+            params["T_DP"] = 100e-3
+            cutoff_base_time = cutoff_multiplier * params["T_DP"]
+            keys = []
+            run_times = []
+            for i, length in enumerate(length_list):
+                start_time = time()
+                print("----------")
+                cutoff_time = max(cutoff_base_time, 4 * length / C)
+                p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
+                key_per_time = standard_bipartite_evaluation(p.data)[2]
+                run_time = (time()-start_time)
+                print(f"{length=} finished in {run_time:.2f} seconds.")
+                print(f"{key_per_time=}")
+                print("Event stats:")
+                w.event_queue.print_stats()
+                keys += [key_per_time]
+                run_times +=[run_time]
+                if key_per_time < 1e-1:
+                    break
+            plot_info[cutoff_multiplier] = {}
+            plot_info[cutoff_multiplier]["lengths"] = length_list[:i+1]
+            custom_length_lists[cutoff_multiplier] = length_list[:i+1]
+            plot_info[cutoff_multiplier]["keys"] = keys
+            plot_info[cutoff_multiplier]["run_times"] = run_times
+        # save custom length_lists
+        with open(os.path.join(output_path, f"custom_lengths_{case_number}.pickle"), "wb") as f:
+            pickle.dump(custom_length_lists, f)
+        print("%=======================================%")
+        print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
+        # now plot keys
+        for cutoff_multiplier in cutoff_multipliers:
+            x = plot_info[cutoff_multiplier]["lengths"]
+            y = plot_info[cutoff_multiplier]["keys"]
+            plt.scatter(x, y, s=10, label=f"{cutoff_multiplier=}")
+        plt.yscale("log")
+        plt.xlabel("Ground distance")
+        plt.ylabel("Key rate")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
+        plt.close()
+        # now plot run_times
+        for cutoff_multiplier in cutoff_multiplier:
+            x = plot_info[cutoff_multiplier]["lengths"]
+            y = plot_info[cutoff_multiplier]["run_times"]
+            plt.scatter(x, y, s=10, label=f"{cutoff_multiplier=}")
+        plt.xlabel("Ground distance")
+        plt.ylabel("run time [s]")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(output_path,f"run_times_{case_number}.png"))
+        plt.close()
