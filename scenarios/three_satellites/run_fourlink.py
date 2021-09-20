@@ -171,20 +171,20 @@ if __name__ == "__main__":
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
-            for t_dp in dephasing_times:
+            for t_dp, lens in zip(dephasing_times, custom_length_lists):
                 t_params = dict(params)
                 t_params["T_DP"] = t_dp
-                lens = custom_length_lists[t_dp]
-                lens = lens[:-1]
+                # lens = custom_length_lists[t_dp]
+                # lens = lens[:-1]
                 min_cutoff_time = cutoff_multiplier * t_params["T_DP"]
                 cutoff_times = [max(min_cutoff_time, 4 * length / C) for length in lens]
                 num_calls = len(lens)
                 aux_list = zip(lens, [max_iter] * num_calls, [t_params] * num_calls, cutoff_times, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
                 result[t_dp] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
             pool.close()
-            for t_dp in dephasing_times:
-                lens = custom_length_lists[t_dp]
-                lens = lens[:-1]
+            for t_dp, lens in zip(dephasing_times, custom_length_lists):
+                # lens = custom_length_lists[t_dp]
+                # lens = lens[:-1]
                 data_series = pd.Series(result[t_dp].get(), index=lens)
                 output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
@@ -208,19 +208,19 @@ if __name__ == "__main__":
         result = {}
         start_time = time()
         with Pool(num_processes) as pool:
-            for h in orbital_heights:
+            for h, lens in zip(orbital_heights, custom_length_lists):
                 h_params = dict(params)
                 h_params["ORBITAL_HEIGHT"] = h
-                lens = custom_length_lists[h]
-                lens = lens[:-1]
+                # lens = custom_length_lists[h]
+                # lens = lens[:-1]
                 cutoff_times = [max(min_cutoff_time, 4 * length / C) for length in lens]
                 num_calls = len(lens)
                 aux_list = zip(lens, [max_iter] * num_calls, [h_params] * num_calls, cutoff_times, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
                 result[h] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
             pool.close()
-            for h in orbital_heights:
-                lens = custom_length_lists[h]
-                lens = lens[:-1]
+            for h, lens in zip(orbital_heights, custom_length_lists):
+                # lens = custom_length_lists[h]
+                # lens = lens[:-1]
                 data_series = pd.Series(result[h].get(), index=lens)
                 output_path = os.path.join(out_path, "%d_orbital_height" % int(h / 1000))
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
