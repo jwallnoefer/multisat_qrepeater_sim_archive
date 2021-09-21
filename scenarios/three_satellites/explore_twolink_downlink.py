@@ -350,7 +350,8 @@ if __name__ == "__main__":
             for i, length in enumerate(length_list):
                 start_time = time()
                 print("----------")
-                cutoff_time = max(cutoff_base_time, 4 * length / C)
+                # cutoff_time = max(cutoff_base_time, 4 * length / C)
+                cutoff_time = cutoff_base_time
                 p, w = run(length=length, max_iter=1000, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=satellite_multiplier, return_world=True)
                 key_per_time = standard_bipartite_evaluation(p.data)[2]
                 run_time = (time()-start_time)
@@ -385,7 +386,7 @@ if __name__ == "__main__":
         plt.savefig(os.path.join(output_path,f"keys_{case_number}.png"))
         plt.close()
         # now plot run_times
-        for cutoff_multiplier in cutoff_multiplier:
+        for cutoff_multiplier in cutoff_multipliers:
             x = plot_info[cutoff_multiplier]["lengths"]
             y = plot_info[cutoff_multiplier]["run_times"]
             plt.scatter(x, y, s=10, label=f"{cutoff_multiplier=}")
