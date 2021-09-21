@@ -9,23 +9,28 @@ import pandas as pd
 from consts import SPEED_OF_LIGHT_IN_VACCUM as C
 import pickle
 
+
 def max_length_horizon(first_satellite_multiplier):
     if first_satellite_multiplier <= 1 / 6:
         return 2 * 4400e3 / (1 - 2 * first_satellite_multiplier)
     else:
         return 2200e3 / first_satellite_multiplier
 
+
 def split_list(my_list, chunksize):
-    return [my_list[i:i+chunksize] for i in range(0, len(my_list), chunksize)]
+    return [my_list[i:i + chunksize] for i in range(0, len(my_list), chunksize)]
+
 
 def labeled_split_list(label, my_list, chunksize):
     return [(label, da_list) for da_list in split_list(my_list, chunksize)]
+
 
 def reorder_runs(run_list):
     my_list = zip(*run_list)
     # strip extra nesting layer
     new_run_list = [run for nested_list in my_list for run in nested_list]
     return new_run_list
+
 
 # # # values taken from https://arxiv.org/abs/2006.10636
 F_CLOCK = 20e6  # 20 MHz is very high
@@ -180,7 +185,7 @@ if __name__ == "__main__":
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
     elif case_number == 7:
-        #case 7: varying orbital heights
+        # case 7: varying orbital heights
         out_path = os.path.join(result_path, "orbital_heights")
         params = dict(base_params)
         params["DIVERGENCE_THETA"] = 2e-6
@@ -210,5 +215,32 @@ if __name__ == "__main__":
                 lens = custom_length_lists[h]
                 data_series = pd.Series(result[h].get(), index=lens)
                 output_path = os.path.join(out_path, "%d_orbital_height" % int(h / 1000))
+                save_result(data_series=data_series, output_path=output_path)#, mode="append")
+        print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    elif case_number == 8:
+        # case 8: varying cutoff times to show optimizing this is important
+        out_path = os.path.join(result_path, "cutoff_times")
+        params = dict(base_params)
+        params["DIVERGENCE_THETA"] = 2e-6
+        params["T_DP"] = 100e-3
+        first_satellite_multiplier = 0.0
+        num_memories = 1000
+        cutoff_multipliers = [1.0, 0.5, 0.1, 0.05, 0.02]
+        with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
+            custom_length_lists = pickle.load(f)
+        custom_length_lists = [custom_length_lists[key][:-1] for key in cutoff_multipliers]
+        max_iter = 1e5
+        result = {}
+        start_time = time()
+        with Pool(num_processes) as pool:
+            for cutoff_multiplier, lens in zip(cutoff_multipliers, custom_length_lists):
+                cutoff_time = cutoff_multiplier * params["T_DP"]
+                num_calls = len(lens)
+                aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
+                result[cutoff_multiplier] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
+            pool.close()
+            for cutoff_multiplier, lens in zip(cutoff_multipliers, custom_length_lists):
+                data_series = pd.Series(result[cutoff_multiplier].get(), index=lens)
+                output_path = os.path.join(out_path, "%d_cutoff_multiplier" % int(cutoff_multiplier * 100))
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
