@@ -342,7 +342,7 @@ if __name__ == "__main__":
             print("%=====================%")
             print(f"{cutoff_multiplier=}")
             params = dict(base_params)
-            params["DIVERGENCE_THETA"] = 2e-6
+            params["DIVERGENCE_THETA"] = 5e-6
             params["T_DP"] = 100e-3
             cutoff_base_time = cutoff_multiplier * params["T_DP"]
             keys = []
