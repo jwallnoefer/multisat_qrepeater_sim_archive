@@ -221,11 +221,11 @@ if __name__ == "__main__":
         # case 8: varying cutoff times to show optimizing this is important
         out_path = os.path.join(result_path, "cutoff_times")
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 2e-6
+        params["DIVERGENCE_THETA"] = 5e-6
         params["T_DP"] = 100e-3
         first_satellite_multiplier = 0.0
         num_memories = 1000
-        cutoff_multipliers = [1.0, 0.5, 0.1, 0.05, 0.02]
+        cutoff_multipliers = [None, 1.0, 0.75, 0.5, 0.1, 0.05, 0.02]
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
         custom_length_lists = [custom_length_lists[key][:-1] for key in cutoff_multipliers]
@@ -234,13 +234,26 @@ if __name__ == "__main__":
         start_time = time()
         with Pool(num_processes) as pool:
             for cutoff_multiplier, lens in zip(cutoff_multipliers, custom_length_lists):
-                cutoff_time = cutoff_multiplier * params["T_DP"]
+                try:
+                    cutoff_time = cutoff_multiplier * params["T_DP"]
+                except TypeError as e:
+                    if cutoff_multiplier is None:
+                        cutoff_time = None
+                    else:
+                        raise e
                 num_calls = len(lens)
                 aux_list = zip(lens, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, [first_satellite_multiplier] * num_calls)
                 result[cutoff_multiplier] = pool.starmap_async(do_the_thing, aux_list, chunksize=1)
             pool.close()
             for cutoff_multiplier, lens in zip(cutoff_multipliers, custom_length_lists):
                 data_series = pd.Series(result[cutoff_multiplier].get(), index=lens)
-                output_path = os.path.join(out_path, "%d_cutoff_multiplier" % int(cutoff_multiplier * 100))
+                try:
+                    dir_prefix = "%d" % int(cutoff_multiplier * 100)
+                except TypeError as e:
+                    if cutoff_multiplier is None:
+                        dir_prefix = "None"
+                    else:
+                        raise e
+                output_path = os.path.join(out_path, dir_prefix + "_cutoff_multiplier")
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
