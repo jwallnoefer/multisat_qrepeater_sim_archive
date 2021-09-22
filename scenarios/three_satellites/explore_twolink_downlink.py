@@ -335,7 +335,7 @@ if __name__ == "__main__":
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
         satellite_multiplier = 0.0
-        cutoff_multipliers = [1.0, 0.5, 0.1, 0.05, 0.02]
+        cutoff_multipliers = [None, 1.0, 0.75, 0.5, 0.1, 0.05, 0.02]
         plot_info = {}
         custom_length_lists = {}
         for cutoff_multiplier in cutoff_multipliers:
@@ -344,7 +344,13 @@ if __name__ == "__main__":
             params = dict(base_params)
             params["DIVERGENCE_THETA"] = 5e-6
             params["T_DP"] = 100e-3
-            cutoff_base_time = cutoff_multiplier * params["T_DP"]
+            try:
+                cutoff_base_time = cutoff_multiplier * params["T_DP"]
+            except TypeError as e:
+                if cutoff_multiplier is None:
+                    cutoff_base_time = None
+                else:
+                    raise e
             keys = []
             run_times = []
             for i, length in enumerate(length_list):
