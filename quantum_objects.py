@@ -252,6 +252,10 @@ class Pair(WorldObject):
     def qubit2(self, qubit):
         self.qubits[1] = qubit
 
+    def is_between_stations(self, station1, station2):
+        return (self.qubit1.station == station1 and self.qubit2.station == station2) or \
+               (self.qubit1.station == station2 and self.qubit2.station == station1)
+
     def _on_update_time(self):
         time_interval = self.event_queue.current_time - self.last_updated
         map0 = self.qubits[0].station.memory_noise
