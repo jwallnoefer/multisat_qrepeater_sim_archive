@@ -335,7 +335,7 @@ if __name__ == "__main__":
         # cutoff_time = 0.01
         length_list = np.linspace(0, 8800e3, num=96)
         satellite_multiplier = 0.0
-        cutoff_multipliers = [None, 1.0, 0.75, 0.5, 0.1, 0.05, 0.02]
+        cutoff_multipliers = [None, 0.5, 0.2, 0.1, 0.05, 0.02]
         plot_info = {}
         custom_length_lists = {}
         for cutoff_multiplier in cutoff_multipliers:

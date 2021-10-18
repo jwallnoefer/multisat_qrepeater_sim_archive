@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elevation_curved, eta_atm, eta_dif
 
+
 def e91_rate(length, divergence_half_angle=2e-6, orbital_height=400e3):
     R_S = 20e6  # 20 MHz repetition rate
     eta_tot = e91_eta(length, divergence_half_angle=divergence_half_angle, orbital_height=orbital_height)
@@ -101,7 +102,8 @@ for i, theta in thetas.items():
 
 # memories = {5: 100, 6: 1000}
 memories = {6: 1000}
-dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
+# dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
+dephasing_times = [2e-3, 3e-3, 4e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0]
 for i, num_memories in memories.items():
     out_path = os.path.join(result_path, "memories", str(i))
     for t_dp in dephasing_times:
@@ -170,7 +172,7 @@ plt.grid()
 plt.xlabel("ground distance [km]")
 plt.ylabel("key per time [Hz]")
 plt.title(f"{scenario_str}: theta=2µrad, first_sat_multiplier=0, num_memories=1000")
-plt.savefig(os.path.join(result_path, f"orbital_heights.png"))
+plt.savefig(os.path.join(result_path, "orbital_heights.png"))
 manager = plt.get_current_fig_manager()
 manager.window.maximize()
 plt.show()
@@ -211,4 +213,36 @@ plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000")
 plt.savefig(os.path.join(result_path, "divergence_thetas.png"))
 manager = plt.get_current_fig_manager()
 manager.window.maximize()
+plt.show()
+
+# cutoff_time plot
+cutoff_multipliers = [None, 1.0, 0.75, 0.5, 0.1, 0.05, 0.02]
+out_path = os.path.join(result_path, "cutoff_times")
+for cutoff_multiplier in cutoff_multipliers:
+    try:
+        dir_prefix = "%d" % int(cutoff_multiplier * 100)
+    except TypeError as e:
+        if cutoff_multiplier is None:
+            dir_prefix = "None"
+        else:
+            raise e
+    output_path = os.path.join(out_path, dir_prefix + "_cutoff_multiplier")
+    try:
+        df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+    except FileNotFoundError:
+        continue
+    x = df.index / 1000
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+    plt.scatter(x, y, marker="o", s=10, label=f"{cutoff_multiplier=}")
+xx = np.linspace(0, 44e5, num=500)
+yy = [e91_rate(i) for i in xx]
+plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
+plt.yscale("log")
+plt.ylim(1e-2, 1e5)
+plt.legend()
+plt.grid()
+plt.xlabel("ground distance [km]")
+plt.ylabel("key per time [Hz]")
+plt.title(f"{scenario_str}: theta=5µrad, first_sat_multiplier=0, num_memories=1000")
+plt.savefig(os.path.join(result_path, "cutoff_multipliers.png"))
 plt.show()

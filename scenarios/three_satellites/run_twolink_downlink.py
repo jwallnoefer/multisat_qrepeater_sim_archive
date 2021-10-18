@@ -225,10 +225,11 @@ if __name__ == "__main__":
         params["T_DP"] = 100e-3
         first_satellite_multiplier = 0.0
         num_memories = 1000
-        cutoff_multipliers = [None, 1.0, 0.75, 0.5, 0.1, 0.05, 0.02]
+        cutoff_multipliers = [None, 0.5, 0.2, 0.1, 0.05, 0.02]
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
-        custom_length_lists = [custom_length_lists[key][:-1] for key in cutoff_multipliers]
+        # custom_length_lists = [custom_length_lists[key][:-1] for key in cutoff_multipliers]
+        custom_length_lists = [custom_length_lists[key] for key in cutoff_multipliers]
         max_iter = 1e5
         result = {}
         start_time = time()
