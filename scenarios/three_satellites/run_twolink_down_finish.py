@@ -92,7 +92,7 @@ def run_finish(case_number, subcase, length):
         output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
         save_result(data_series=data_series, output_path=output_path, mode="append")
     elif case_number in [1, 2, 3, 4]:
-        out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
+        out_path = os.path.join(result_path, "divergence_theta", str(case_number))
         thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
         params = dict(base_params)
         params["DIVERGENCE_THETA"] = thetas[case_number]
@@ -109,7 +109,7 @@ def run_finish(case_number, subcase, length):
         output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
         save_result(data_series=data_series, output_path=output_path, mode="append")
     elif case_number in [5, 6]:
-        out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
+        out_path = os.path.join(result_path, "memories", str(case_number))
         memories = {5: 100, 6: 1000}
         params = dict(base_params)
         params["DIVERGENCE_THETA"] = 2e-6
