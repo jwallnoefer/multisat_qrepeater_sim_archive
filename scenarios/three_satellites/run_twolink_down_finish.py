@@ -176,7 +176,7 @@ def run(case_number, subcase, length):
 
 if __name__ == "__main__":
     index = sys.argv[1]
-    with open(os.path.join("scenarios", "three_satellites", "twolink_downlink_tuples.pickle"), "rb"):
+    with open(os.path.join("scenarios", "three_satellites", "twolink_downlink_tuples.pickle"), "rb") as f:
         case_tuples = pickle.load(f)
     case_tuple = case_tuples[index]
     run(*case_tuple)
