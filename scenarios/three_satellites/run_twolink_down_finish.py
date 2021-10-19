@@ -70,7 +70,7 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
     return p.data
 
 
-def run(case_number, subcase, length):
+def run_finish(case_number, subcase, length):
     result_path = os.path.join("results", "three_satellites", "twolink_downlink")
     # path_to_custom_lengths = os.path.join(result_path, "explore")
     # case_number = int(sys.argv[1])
@@ -122,7 +122,7 @@ def run(case_number, subcase, length):
         t_params["T_DP"] = t_dp
         min_cutoff_time = cutoff_multiplier * t_params["T_DP"]
         cutoff_time = max(min_cutoff_time, 4 * length / C)
-        res = do_the_thing(length, max_iter, t_params, cutoff_time, num_memories, multiplier)
+        res = do_the_thing(length, max_iter, t_params, cutoff_time, num_memories, first_satellite_multiplier)
         data_series = pd.Series([res], index=[length])
         output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
         save_result(data_series=data_series, output_path=output_path, mode="append")
@@ -141,7 +141,7 @@ def run(case_number, subcase, length):
         cutoff_time = max(min_cutoff_time, 4 * length / C)
         h_params = dict(params)
         h_params["ORBITAL_HEIGHT"] = h
-        res = do_the_thing(length, max_iter, h_params, cutoff_time, num_memories, multiplier)
+        res = do_the_thing(length, max_iter, h_params, cutoff_time, num_memories, first_satellite_multiplier)
         data_series = pd.Series([res], index=[length])
         output_path = os.path.join(out_path, "%d_orbital_height" % int(h / 1000))
         save_result(data_series=data_series, output_path=output_path, mode="append")
@@ -162,7 +162,7 @@ def run(case_number, subcase, length):
                 cutoff_time = None
             else:
                 raise e
-        res = do_the_thing(length, max_iter, params, cutoff_time, num_memories, multiplier)
+        res = do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_satellite_multiplier)
         data_series = pd.Series([res], index=[length])
         try:
             dir_prefix = "%d" % int(cutoff_multiplier * 100)
@@ -175,8 +175,8 @@ def run(case_number, subcase, length):
         save_result(data_series=data_series, output_path=output_path, mode="append")
 
 if __name__ == "__main__":
-    index = sys.argv[1]
+    index = int(sys.argv[1])
     with open(os.path.join("scenarios", "three_satellites", "twolink_downlink_tuples.pickle"), "rb") as f:
         case_tuples = pickle.load(f)
     case_tuple = case_tuples[index]
-    run(*case_tuple)
+    run_finish(*case_tuple)
