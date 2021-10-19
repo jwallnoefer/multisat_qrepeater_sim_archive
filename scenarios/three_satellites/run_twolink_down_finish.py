@@ -144,7 +144,7 @@ def run(case_number, subcase, length):
         res = do_the_thing(length, max_iter, h_params, cutoff_time, num_memories, multiplier)
         data_series = pd.Series([res], index=[length])
         output_path = os.path.join(out_path, "%d_orbital_height" % int(h / 1000))
-        save_result(data_series=data_series, output_path=output_path, mode="append")))
+        save_result(data_series=data_series, output_path=output_path, mode="append")
     elif case_number == 8:
         # case 8: varying cutoff times to show optimizing this is important
         out_path = os.path.join(result_path, "cutoff_times")
