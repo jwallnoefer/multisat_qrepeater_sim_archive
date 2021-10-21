@@ -9,7 +9,8 @@ from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elev
 project_title = "satellite_repeater"
 project_title = project_title + ".tex"
 tex_source_path = os.path.join("manuscript")
-formatter = rsmf.setup(os.path.join(tex_source_path, project_title))
+# formatter = rsmf.setup(os.path.join(tex_source_path, project_title))#
+formatter = rsmf.setup(r"\documentclass[superscriptaddress,twocolumn,amsmath,amssymb,aps,superscriptaddress,pra,]{revtex4-2}")
 
 # Set color scheme
 color_list = [
@@ -20,9 +21,10 @@ color_list = [
 '#009E73',
 '#D55E00',
 '#0072B2',
-'#0072b2',
 '#000000'
 ]
+
+font_color = '#000000'
 
 def e91_rate(length, divergence_half_angle=2e-6, orbital_height=400e3):
     R_S = 20e6  # 20 MHz repetition rate
@@ -74,8 +76,8 @@ plt.yscale("log")
 plt.ylim(1e-2, 0.5e5)
 # plt.legend(loc="lower left")
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=color_list[8])
-plt.ylabel("key / time [Hz]", color=color_list[8])
+plt.xlabel("ground distance $d$ [km]", color=font_color)
+plt.ylabel("key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # end... satellite postitions
@@ -102,6 +104,9 @@ for i, theta in thetas.items():
             continue
         x = df.index / 1000
         y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+        if y[-1] < 0:
+            x = x[:-1]
+            y = y[:-1]
         plt.scatter(x, y, marker=markers[i], s=2, label=f"$\\theta={int(theta*1e6)}µ$rad, pos = {multiplier}", c=color)
     # # compare to one satellite
     # path = os.path.join("results", "one_satellite", "divergence_theta", str(i))
@@ -118,8 +123,8 @@ plt.yscale("log")
 plt.ylim(0.3e-1, 0.3e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=color_list[8])
-plt.ylabel("key / time [Hz]", color=color_list[8])
+plt.xlabel("ground distance $d$ [km]", color=font_color)
+plt.ylabel("key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -160,8 +165,8 @@ plt.yscale("log")
 plt.ylim(1e-3, 0.5e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=color_list[8])
-plt.ylabel("key / time [Hz]", color=color_list[8])
+plt.xlabel("ground distance $d$ [km]", color=font_color)
+plt.ylabel("key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -172,9 +177,9 @@ print(f"Plot saved as {figure_name}")
 
 # forth memories
 fig = formatter.figure(width_ratio=1.0, wide=False)
-out_path = os.path.join(result_path, "sat_positions")
 memories = {6: 1000}
-dephasing_times = [2e-3, 3e-3, 4e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0].reverse() #[10e-3, 50e-3, 100e-3, 1.0]
+dephasing_times = [2e-3, 3e-3, 4e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0] #[10e-3, 50e-3, 100e-3, 1.0]
+dephasing_times.reverse()
 for i, num_memories in memories.items():
     out_path = os.path.join(result_path, "memories", str(i))
     for idx, t_dp in enumerate(dephasing_times):
@@ -185,29 +190,72 @@ for i, num_memories in memories.items():
             continue
         x = df.index / 1000
         y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+        if t_dp in [2e-3, 3e-3]:
+            x = x[:-1]
+            y = y[:-1]
         plt.scatter(x, y, c=color_list[idx] , marker="o", s=1, label=f"t_dp={t_dp * 1e3}ms")
-    # # compare to one satellite
-    # path = os.path.join("results", "one_satellite", "memories", str(i), "100_t_dp")
-    # try:
-    #     df = pd.read_csv(os.path.join(path, "result.csv"), index_col=0)
-    #     x = df.index / 1000
-    #     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-    #     plt.scatter(x, y, marker="o", s=1, label="1 Satellite, t_dp=100ms")
-    # except FileNotFoundError:
-    #     pass
+#     # # compare to one satellite
+#     # path = os.path.join("results", "one_satellite", "memories", str(i), "100_t_dp")
+#     # try:
+#     #     df = pd.read_csv(os.path.join(path, "result.csv"), index_col=0)
+#     #     x = df.index / 1000
+#     #     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+#     #     plt.scatter(x, y, marker="o", s=1, label="1 Satellite, t_dp=100ms")
+#     # except FileNotFoundError:
+#     #     pass
     xx = np.linspace(0, 44e5, num=500)
     yy = [e91_rate(i) for i in xx]
     plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
-    plt.yscale("log")
-    plt.ylim(1e-1, 1e5)
+plt.yscale("log")
+plt.ylim(1e-1, 1e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=color_list[8])
-plt.ylabel("key / time [Hz]", color=color_list[8])
+plt.xlabel("ground distance $d$ [km]", color=font_color)
+plt.ylabel("key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
 figure_name = "memories_1000"
+figure_name = figure_name + ".pdf"
+plt.savefig(os.path.join(result_path, figure_name))
+print(f"Plot saved as {figure_name}")
+
+# plot cutoff time plot
+fig = formatter.figure(width_ratio=1.0, wide=False)
+out_path = os.path.join(result_path, "cutoff_times")
+cutoff_multipliers = [None, 0.5, 0.2, 0.1, 0.05, 0.02]
+for idx, cutoff_multiplier in enumerate(cutoff_multipliers):
+    try:
+        dir_prefix = "%d" % int(cutoff_multiplier * 100)
+    except TypeError as e:
+        if cutoff_multiplier is None:
+            dir_prefix = "None"
+        else:
+            raise e
+    output_path = os.path.join(out_path, dir_prefix + "_cutoff_multiplier")
+    try:
+        df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+    except FileNotFoundError:
+        continue
+    x = df.index / 1000
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+    while y[-1] < 0:
+        x = x[:-1]
+        y = y[:-1]
+    plt.scatter(x, y, c=color_list[idx] , marker="o", s=1, label=f"cuttoff_time={dir_prefix}ms")
+xx = np.linspace(0, 44e5, num=500)
+yy = [e91_rate(i) for i in xx]
+plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
+plt.yscale("log")
+plt.ylim(1e-1, 1e5)
+# plt.legend(loc='upper right', ncol=2)
+plt.grid()
+plt.xlabel("ground distance $d$ [km]", color=font_color)
+plt.ylabel("key / time [Hz]", color=font_color)
+# plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
+plt.tight_layout()
+# save the plot
+figure_name = "cutoff_times"
 figure_name = figure_name + ".pdf"
 plt.savefig(os.path.join(result_path, figure_name))
 print(f"Plot saved as {figure_name}")
