@@ -71,6 +71,7 @@ for subdir, dirs, files in os.walk(root_dir):
                     twolink_downlink_tuples += [case_tuple]
                 elif re.search("fourlink", subdir):
                     fourlink_tuples += [case_tuple]
+                print(case_tuple)
 
 with open(os.path.join("scenarios", "three_satellites", "twolink_downlink_tuples.pickle"), "wb") as f:
     pickle.dump(twolink_downlink_tuples, f)
