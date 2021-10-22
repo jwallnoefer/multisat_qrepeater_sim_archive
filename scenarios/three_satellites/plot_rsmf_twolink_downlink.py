@@ -10,7 +10,7 @@ project_title = "satellite_repeater"
 project_title = project_title + ".tex"
 tex_source_path = os.path.join("manuscript")
 # formatter = rsmf.setup(os.path.join(tex_source_path, project_title))#
-formatter = rsmf.setup(r"\documentclass[superscriptaddress,twocolumn,amsmath,amssymb,aps,superscriptaddress,pra,]{revtex4-2}")
+formatter = rsmf.setup(r"\documentclass[a4paper,twocolumn,11pt,accepted=2017-05-09]{quantumarticle}")
 
 # Set color scheme
 color_list = [
