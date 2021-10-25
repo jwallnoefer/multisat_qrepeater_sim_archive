@@ -53,6 +53,7 @@ fig = formatter.figure(width_ratio=1.0, wide=False)
 # begin... satellite postitions
 out_path = os.path.join(result_path, "sat_positions")
 first_satellite_multipliers = np.linspace(0, 0.5, num=6)
+plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", zorder=0)
 for index, multiplier in enumerate(first_satellite_multipliers):
     output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
     try:
@@ -61,7 +62,7 @@ for index, multiplier in enumerate(first_satellite_multipliers):
         continue
     x = df.index / 1000
     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-    plt.scatter(x, y, marker="o", s=0.5, c=color_list[index], label=f"first_sat_multiplier={multiplier:.1f}")
+    plt.scatter(x, y, marker="o", s=0.5, c=color_list[index], label=f"$S_A$ @ {int(multiplier * 100):d}%")
 # # compare to one satellite
 # path = os.path.join("results", "one_satellite", "divergence_theta", "1")
 # try:
@@ -71,10 +72,9 @@ for index, multiplier in enumerate(first_satellite_multipliers):
 #     plt.scatter(x, y, marker="o", s=0.5, label="1 Satellite")
 # except FileNotFoundError:
 #     pass
-plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
 plt.yscale("log")
 plt.ylim(1e-2, 0.5e5)
-# plt.legend(loc="lower left")
+plt.legend(loc="lower left", fontsize=6)
 plt.grid()
 plt.xlabel("ground distance $d$ [km]", color=font_color)
 plt.ylabel("key / time [Hz]", color=font_color)
@@ -227,9 +227,11 @@ cutoff_multipliers = [None, 0.5, 0.2, 0.1, 0.05, 0.02]
 for idx, cutoff_multiplier in enumerate(cutoff_multipliers):
     try:
         dir_prefix = "%d" % int(cutoff_multiplier * 100)
+        label = dir_prefix + "ms"
     except TypeError as e:
         if cutoff_multiplier is None:
             dir_prefix = "None"
+            label = dir_prefix
         else:
             raise e
     output_path = os.path.join(out_path, dir_prefix + "_cutoff_multiplier")
@@ -242,13 +244,13 @@ for idx, cutoff_multiplier in enumerate(cutoff_multipliers):
     while y[-1] < 0:
         x = x[:-1]
         y = y[:-1]
-    plt.scatter(x, y, c=color_list[idx] , marker="o", s=1, label=f"cuttoff_time={dir_prefix}ms")
+    plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=label)
 xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
-plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
+plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", zorder=0)
 plt.yscale("log")
-plt.ylim(1e-1, 1e5)
-# plt.legend(loc='upper right', ncol=2)
+plt.ylim(1e-1, 1e4)
+plt.legend(loc='lower left', fontsize=6, title="cutoff time $t_\mathrm{cut}", title_fontsize=6)
 plt.grid()
 plt.xlabel("ground distance $d$ [km]", color=font_color)
 plt.ylabel("key / time [Hz]", color=font_color)
