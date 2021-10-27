@@ -1,5 +1,7 @@
 # Quantum Repeater simulation with multiple satellites
 
+[![DOI](https://zenodo.org/badge/421734256.svg)](https://zenodo.org/badge/latestdoi/421734256)
+
 This repository is an archive for the code used in:
 
 > Simulating quantum repeater strategies for multiple satellites <br>
