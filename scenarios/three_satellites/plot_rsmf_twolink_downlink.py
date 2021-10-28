@@ -10,7 +10,7 @@ project_title = "satellite_repeater"
 project_title = project_title + ".tex"
 tex_source_path = os.path.join("manuscript")
 # formatter = rsmf.setup(os.path.join(tex_source_path, project_title))#
-formatter = rsmf.setup(r"\documentclass[a4paper,twocolumn,11pt,accepted=2017-05-09]{quantumarticle}")
+formatter = rsmf.setup(r"\documentclass[twocolumn]{revtex4-2}")
 
 # Set color scheme
 color_list = [
@@ -76,8 +76,8 @@ plt.yscale("log")
 plt.ylim(1e-2, 0.5e5)
 plt.legend(loc="lower left", fontsize=6)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # end... satellite postitions
@@ -123,8 +123,8 @@ plt.yscale("log")
 plt.ylim(0.3e-1, 0.3e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -165,8 +165,8 @@ plt.yscale("log")
 plt.ylim(1e-3, 0.5e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -210,8 +210,8 @@ plt.yscale("log")
 plt.ylim(1e-1, 1e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -246,14 +246,14 @@ for idx, cutoff_multiplier in enumerate(cutoff_multipliers):
         y = y[:-1]
     plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=label)
 xx = np.linspace(0, 44e5, num=500)
-yy = [e91_rate(i) for i in xx]
+yy = [e91_rate(i, divergence_half_angle=5e-6) for i in xx]
 plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", zorder=0)
 plt.yscale("log")
 plt.ylim(1e-1, 1e4)
-plt.legend(loc='lower left', fontsize=6, title="cutoff time $t_\mathrm{cut}", title_fontsize=6)
+plt.legend(loc='lower left', fontsize=6, title="Cutoff time $t_\mathrm{cut}", title_fontsize=6)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot

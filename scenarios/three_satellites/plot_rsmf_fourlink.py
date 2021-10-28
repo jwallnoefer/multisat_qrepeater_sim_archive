@@ -10,7 +10,7 @@ project_title = "satellite_repeater"
 project_title = project_title + ".tex"
 tex_source_path = os.path.join("manuscript")
 # formatter = rsmf.setup(os.path.join(tex_source_path, project_title))
-formatter = rsmf.setup(r"\documentclass[a4paper,twocolumn,11pt,accepted=2017-05-09]{quantumarticle}")
+formatter = rsmf.setup(r"\documentclass[twocolumn]{revtex4-2}")
 
 # Set color scheme
 color_list = [
@@ -76,8 +76,8 @@ plt.yscale("log")
 plt.ylim(1e-2, 0.5e5)
 plt.legend(loc="lower left", fontsize=6)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # end... satellite postitions
@@ -104,6 +104,9 @@ for i, theta in thetas.items():
             continue
         x = df.index / 1000
         y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+        while y[-1] < 0:
+            x = x[:-1]
+            y = y[:-1]
         plt.scatter(x, y, marker=markers[i], s=2, label=f"$\\theta={int(theta*1e6)}µ$rad, pos = {multiplier}", c=color)
     # # compare to one satellite
     # path = os.path.join("results", "one_satellite", "divergence_theta", str(i))
@@ -120,8 +123,8 @@ plt.yscale("log")
 plt.ylim(0.3e-1, 0.3e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -162,8 +165,8 @@ plt.yscale("log")
 plt.ylim(1e-3, 0.5e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
@@ -188,6 +191,9 @@ for i, num_memories in memories.items():
             continue
         x = df.index / 1000
         y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+        while y[-1] < 1e-1:
+            x = x[:-1]
+            y = y[:-1]
         plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"t_dp={t_dp * 1e3}ms")
     # # compare to one satellite
     # path = os.path.join("results", "one_satellite", "memories", str(i), "100_t_dp")
@@ -200,13 +206,13 @@ for i, num_memories in memories.items():
     #     pass
     xx = np.linspace(0, 44e5, num=500)
     yy = [e91_rate(i) for i in xx]
-    plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
+    plt.plot(xx / 1000, yy, linestyle="dashed", color="gray")
     plt.yscale("log")
-    plt.ylim(1e-1, 1e5)
+    plt.ylim(1e-1, 1e6)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
-plt.xlabel("ground distance $d$ [km]", color=font_color)
-plt.ylabel("key / time [Hz]", color=font_color)
+plt.xlabel("Ground distance $d$ [km]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
 # plt.title(f"{scenario_str}: T_DP=0.1s, num_memories=1000, theta=2µrad")
 plt.tight_layout()
 # save the plot
