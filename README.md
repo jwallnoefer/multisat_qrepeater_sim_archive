@@ -6,7 +6,7 @@ This repository is an archive for the code used in:
 
 > Simulating quantum repeater strategies for multiple satellites <br>
 > J. Wallnöfer, F. Hahn, M. Gündoğan, J. S. Sidhu, F. Krüger, N. Walk, J. Eisert, J. Wolters <br>
-> in preparation
+> Preprint: [arXiv:2110.15806 [quant-ph]](https://arxiv.org/abs/2110.15806)
 
 ## Repository structure
 
