@@ -4,7 +4,7 @@ from abc import abstractmethod
 import numpy as np
 import pandas as pd
 from events import SourceEvent
-from consts import SPEED_OF_LIGHT_IN_OPTICAL_FIBER as C
+from consts import SPEED_OF_LIGHT_IN_OPTICAL_FIBER
 from libs.aux_functions import distance
 
 if sys.version_info >= (3, 4):
@@ -73,11 +73,12 @@ class TwoLinkProtocol(Protocol):
     But it is still abstract and misses the central check method.
     """
 
-    def __init__(self, world):
+    def __init__(self, world, communication_speed=SPEED_OF_LIGHT_IN_OPTICAL_FIBER):
         self.time_list = []
         self.state_list = []
         self.resource_cost_max_list = []
         self.resource_cost_add_list = []
+        self.communication_speed = communication_speed
         super(TwoLinkProtocol, self).__init__(world=world)
 
     @property
@@ -150,7 +151,7 @@ class TwoLinkProtocol(Protocol):
 
     def _eval_pair(self, long_range_pair):
         comm_distance = np.max([distance(self.station_central, self.station_A), distance(self.station_B, self.station_central)])
-        comm_time = comm_distance / C
+        comm_time = comm_distance / self.communication_speed
 
         self.time_list += [self.world.event_queue.current_time + comm_time]
         self.state_list += [long_range_pair.state]
