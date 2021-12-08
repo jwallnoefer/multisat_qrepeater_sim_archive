@@ -95,7 +95,16 @@ def calculate_keyrate_channel_use(correlations_z, correlations_x, err_corr_ineff
     return keyrate, keyrate_std
 
 
-def standard_bipartite_evaluation(data_frame, err_corr_ineff=1):
+def calculate_keyrate_channel_use_from_time(correlations_z, correlations_x, err_corr_ineff, time_list, trial_time, return_std=False):
+    time_interval_list = np.diff(pd.concat([pd.Series([trial_time / 2]), time_list]))
+    resource_list = time_interval_list / trial_time
+    return calculate_keyrate_channel_use(correlations_z=correlations_z,
+                                         correlations_x=correlations_x,
+                                         err_corr_ineff=err_corr_ineff,
+                                         resource_list=resource_list,
+                                         return_std=return_std)
+
+def standard_bipartite_evaluation(data_frame, trial_time=None, err_corr_ineff=1):
     states = data_frame["state"]
 
     fidelity_list = np.real_if_close([np.dot(np.dot(mat.H(mat.phiplus), state), mat.phiplus)[0, 0] for state in states])
@@ -117,11 +126,20 @@ def standard_bipartite_evaluation(data_frame, err_corr_ineff=1):
                                                             err_corr_ineff=err_corr_ineff,
                                                             time_interval=data_frame["time"].iloc[-1],
                                                             return_std=True)
-    key_per_resource, key_per_resource_std = calculate_keyrate_channel_use(correlations_z=correlations_z,
-                                                                           correlations_x=correlations_x,
-                                                                           err_corr_ineff=err_corr_ineff,
-                                                                           resource_list=data_frame["resource_cost_max"],
-                                                                           return_std=True)
+
+    if trial_time is None:
+        key_per_resource, key_per_resource_std = calculate_keyrate_channel_use(correlations_z=correlations_z,
+                                                                               correlations_x=correlations_x,
+                                                                               err_corr_ineff=err_corr_ineff,
+                                                                               resource_list=data_frame["resource_cost_max"],
+                                                                               return_std=True)
+    else:
+        key_per_resource, key_per_resource_std = calculate_keyrate_channel_use_from_time(correlations_z=correlations_z,
+                                                                                         correlations_x=correlations_x,
+                                                                                         err_corr_ineff=err_corr_ineff,
+                                                                                         time_list=data_frame["time"],
+                                                                                         trial_time=trial_time,
+                                                                                         return_std=True)
     return [fidelity, fidelity_std, key_per_time, key_per_time_std, key_per_resource, key_per_resource_std]
 
 
