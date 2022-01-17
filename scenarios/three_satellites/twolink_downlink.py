@@ -118,7 +118,12 @@ class MultiMemoryProtocol(TwoLinkProtocol):
             self.check()
 
 
-def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satellite_ground_dist_multiplier=0.25, return_world=False):
+def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satellite_ground_dist_multiplier=None, satellite_multipliers=None, return_world=False):
+    if first_satellite_ground_dist_multiplier is None and satellite_multipliers is None:
+        raise ValueError("Must specify either first_satellite_ground_dist_multiplier or satellite_multipliers.")
+    elif first_satellite_ground_dist_multiplier is not None and satellite_multipliers is not None:
+        raise ValueError(f"Only one of first_satellite_ground_dist_multiplier or satellite_multipliers can be specified. run was called with {first_satellite_ground_dist_multiplier=}, {satellite_multipliers=}")
+
     # unpack the parameters
     # print(length)
     try:
@@ -179,15 +184,18 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
 
     station_a_angle = 0
     station_a_position = position_from_angle(R_E, station_a_angle)
-    first_satellite_angle = first_satellite_ground_dist_multiplier * length / R_E
+    if satellite_multipliers is not None:
+        first_satellite_angle, second_satellite_angle, third_satellite_angle = np.array(satellite_multipliers) * length / R_E
+    else:
+        first_satellite_angle = first_satellite_ground_dist_multiplier * length / R_E
+        second_satellite_angle = length / 2 / R_E
+        third_satellite_angle = (1 - first_satellite_ground_dist_multiplier) * length / R_E
     first_satellite_position = position_from_angle(R_E + ORBITAL_HEIGHT, first_satellite_angle)
-    second_satellite_angle = length / 2 / R_E
     second_satellite_position = position_from_angle(R_E + ORBITAL_HEIGHT, second_satellite_angle)
-    third_satellite_angle = (1 - first_satellite_ground_dist_multiplier) * length / R_E
     third_satellite_position = position_from_angle(R_E + ORBITAL_HEIGHT, third_satellite_angle)
     station_b_angle = length / R_E
     station_b_position = position_from_angle(R_E, station_b_angle)
-    elevation_left = elevation_curved(ground_dist=first_satellite_ground_dist_multiplier * length, h=ORBITAL_HEIGHT)
+    elevation_left = elevation_curved(ground_dist=np.abs(station_a_angle - first_satellite_angle) * R_E, h=ORBITAL_HEIGHT)
     arrival_chance_a_left = eta_atm(elevation_left) \
                             * eta_dif(distance=distance(station_a_position, first_satellite_position),
                                       divergence_half_angle=DIVERGENCE_THETA,
@@ -198,7 +206,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
                                          sender_aperture_radius=SENDER_APERTURE_RADIUS,
                                          receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
     arrival_chance_left = arrival_chance_a_left * arrival_chance_left_center
-    elevation_right = elevation_curved(ground_dist=first_satellite_ground_dist_multiplier * length, h=ORBITAL_HEIGHT)
+    elevation_right = elevation_curved(ground_dist=np.abs(station_b_angle - third_satellite_angle) * R_E, h=ORBITAL_HEIGHT)
     arrival_chance_b_right = eta_atm(elevation_right) \
                              * eta_dif(distance=distance(station_b_position, third_satellite_position),
                                        divergence_half_angle=DIVERGENCE_THETA,

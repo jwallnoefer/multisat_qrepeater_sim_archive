@@ -69,6 +69,11 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=first_satellite_ground_dist_multiplier)
     return p.data
 
+def do_the_thing_alternate(length, max_iter, params, cutoff_time, num_memories, satellite_multipliers):
+    np.random.seed()
+    p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, satellite_multipliers=satellite_multipliers)
+    return p.data
+
 
 if __name__ == "__main__":
     result_path = os.path.join("results", "three_satellites", "twolink_downlink")
@@ -258,3 +263,32 @@ if __name__ == "__main__":
                 output_path = os.path.join(out_path, dir_prefix + "_cutoff_multiplier")
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
+    elif case_number == 9:
+        # Different positions along orbit for satellites (because apparently satellites move)
+        out_path = os.path.join(result_path, "satellite_path")
+        params = dict(base_params)
+        params["T_DP"] = 100e-3
+        params["DIVERGENCE_THETA"] = 2e-6
+        length = 4400e3
+        cutoff_multiplier = 0.1
+        min_cutoff_time = cutoff_multiplier * params["T_DP"]
+        cutoff_time = max(min_cutoff_time, 4 * length / C)
+        num_memories = 1000
+        base_multipliers = np.array([0, 0.5, 1])
+        num_calls = 17
+        variations = np.linspace(-0.2, 0.2, num=num_calls)
+        multipliers = [base_multipliers + x for x in variations]
+        max_iter = 1e3
+        start_time = time()
+        # result = []
+        # for satellite_multipliers in multipliers:
+        #     print(satellite_multipliers)
+        #     result += [do_the_thing_alternate(length, max_iter, params, cutoff_time, num_memories, satellite_multipliers)]
+        # data_series = pd.Series(result, index=variations)
+        with Pool(num_processes) as pool:
+            aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, multipliers)
+            result = pool.starmap_async(do_the_thing_alternate, aux_list, chunksize=1)
+            pool.close()
+            data_series = pd.Series(result.get(), index=variations)
+            output_path = out_path
+            save_result(data_series=data_series, output_path=output_path)#, mode="append")
