@@ -255,8 +255,8 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
         comm_distance = distance(source.target_stations[0], source.target_stations[1])  # ground station needs to communicate with middle satellite because that is where the memories are
         # careful: doesn't account for the case where memory satellite is below the horizon
         comm_time = comm_distance / C
-        satellite_eta = ETA_MEM * arrival_chance_left_center
-        ground_eta = ETA_DET * arrival_chance_a_left
+        satellite_eta = ETA_MEM * arrival_chance_right_center
+        ground_eta = ETA_DET * arrival_chance_b_right
         ground_eta_effective = 1 - (1 - ground_eta) * (1 - P_D)**2
         # now do the calculation for inner and outer state generation loop
         inner_time = num_memories * 1 / F_CLOCK

@@ -274,21 +274,23 @@ if __name__ == "__main__":
         min_cutoff_time = cutoff_multiplier * params["T_DP"]
         cutoff_time = max(min_cutoff_time, 4 * length / C)
         num_memories = 1000
-        base_multipliers = np.array([0, 0.5, 1])
+        # configurations = [np.array([0, 0.5, 1]), np.array([0.1, 0.5, 0.9]),
+                          # np.array([0.2, 0.5, 0.8])]
+        configurations = [np.array([-0.1, 0.5, 1.1])]
         num_calls = 17
         variations = np.linspace(-0.2, 0.2, num=num_calls)
-        multipliers = [base_multipliers + x for x in variations]
         max_iter = 1e3
         start_time = time()
-        # result = []
-        # for satellite_multipliers in multipliers:
-        #     print(satellite_multipliers)
-        #     result += [do_the_thing_alternate(length, max_iter, params, cutoff_time, num_memories, satellite_multipliers)]
-        # data_series = pd.Series(result, index=variations)
+        result = {}
         with Pool(num_processes) as pool:
-            aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, multipliers)
-            result = pool.starmap_async(do_the_thing_alternate, aux_list, chunksize=1)
+            for base_multipliers in configurations:
+                multipliers = [base_multipliers + x for x in variations]
+                aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, multipliers)
+                result[base_multipliers[0]] = pool.starmap_async(do_the_thing_alternate, aux_list, chunksize=1)
             pool.close()
-            data_series = pd.Series(result.get(), index=variations)
-            output_path = out_path
-            save_result(data_series=data_series, output_path=output_path)#, mode="append")
+            for base_multipliers in configurations:
+                label = str(int(base_multipliers[0] * 10))
+                data_series = pd.Series(result[base_multipliers[0]].get(), index=variations)
+                output_path = os.path.join(out_path, f"{label}_configuration")
+                save_result(data_series=data_series, output_path=output_path)#, mode="append")
+        print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
