@@ -27,10 +27,23 @@ def alpha_of_eta(eta, p_d):
     return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
 
 
-def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius):
+def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=None, pointing_error_std=None):
+    if pointing_error is None and pointing_error_std is None:
+        return _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=0)
+    elif pointing_error is not None and pointing_error_std is not None:
+        raise ValueError(f"Only one of pointing_error or pointing_error_std can be specified. eta_dif was called with {pointing_error=}, {pointing_error_std=}")
+    elif pointing_error is not None:
+        return _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=pointing_error)
+    else:
+        def weighted_distribution(x):
+            return 1 / (2 * np.pi * pointing_error_std**2) * np.exp(-x**2 / (2 * pointing_error_std**2)) * _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=x)
+        # TODO: convolution
+
+
+def _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error):
     # calculated by simple geometry, because gaussian effects do not matter much
     x = sender_aperture_radius + distance * np.tan(divergence_half_angle)
-    arriving_fraction = receiver_aperture_radius**2 / x**2
+    arriving_fraction = receiver_aperture_radius**2 * np.cos(pointing_error)**2 / x**2
     if arriving_fraction > 1:
         arriving_fraction = 1
     return arriving_fraction
