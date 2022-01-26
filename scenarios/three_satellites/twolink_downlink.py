@@ -11,6 +11,7 @@ from consts import SPEED_OF_LIGHT_IN_VACCUM as C
 from functools import lru_cache
 from noise import NoiseModel, NoiseChannel
 from quantum_objects import SchedulingSource, Station
+from warnings import warn
 
 
 class MultiMemoryProtocol(TwoLinkProtocol):
@@ -123,6 +124,11 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
         DIVERGENCE_THETA = params["DIVERGENCE_THETA"]
     except KeyError as e:
         raise Exception('params["DIVERGENCE_THETA"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        POINTING_ERROR_SIGMA = params["POINTING_ERROR_SIGMA"]
+    except KeyError:
+        warn('params["POINTING_ERROR_SIGMA"] is not defined, assuming zero.')
+        POINTING_ERROR_SIGMA = 0
 
     def position_from_angle(radius, angle):
         return radius * np.array([np.sin(angle), np.cos(angle)])
@@ -145,22 +151,26 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
                             * eta_dif(distance=distance(station_a_position, first_satellite_position),
                                       divergence_half_angle=DIVERGENCE_THETA,
                                       sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                      receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                      receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                      pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_left_center = eta_dif(distance=distance(first_satellite_position, second_satellite_position),
                                          divergence_half_angle=DIVERGENCE_THETA,
                                          sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                         receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                         receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                         pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_left = arrival_chance_a_left * arrival_chance_left_center
     elevation_right = elevation_curved(ground_dist=np.abs(station_b_angle - third_satellite_angle) * R_E, h=ORBITAL_HEIGHT)
     arrival_chance_b_right = eta_atm(elevation_right) \
                              * eta_dif(distance=distance(station_b_position, third_satellite_position),
                                        divergence_half_angle=DIVERGENCE_THETA,
                                        sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                       receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                       receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                       pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_right_center = eta_dif(distance=distance(third_satellite_position, second_satellite_position),
                                           divergence_half_angle=DIVERGENCE_THETA,
                                           sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                          receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                          receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                          pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_right = arrival_chance_b_right * arrival_chance_right_center
 
     def imperfect_bsm_err_func(four_qubit_state):

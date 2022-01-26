@@ -251,6 +251,11 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
         DIVERGENCE_THETA = params["DIVERGENCE_THETA"]
     except KeyError as e:
         raise Exception('params["DIVERGENCE_THETA"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        POINTING_ERROR_SIGMA = params["POINTING_ERROR_SIGMA"]
+    except KeyError:
+        warn('params["POINTING_ERROR_SIGMA"] is not defined, assuming zero.')
+        POINTING_ERROR_SIGMA = 0
 
     def position_from_angle(radius, angle):
         return radius * np.array([np.sin(angle), np.cos(angle)])
@@ -274,20 +279,24 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=2, first_satell
                           * eta_dif(distance=distance(station_a_position, first_satellite_position),
                                     divergence_half_angle=DIVERGENCE_THETA,
                                     sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                    pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_link2 = eta_dif(distance=distance(first_satellite_position, second_satellite_position),
                                    divergence_half_angle=DIVERGENCE_THETA,
                                    sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                   receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                   receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                   pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_link3 = eta_dif(distance=distance(second_satellite_position, third_satellite_position),
                                    divergence_half_angle=DIVERGENCE_THETA,
                                    sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                   receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                   receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                   pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_link4 = eta_atm(elevation_right) \
                           * eta_dif(distance=distance(third_satellite_position, station_b_position),
                                     divergence_half_angle=DIVERGENCE_THETA,
                                     sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                    receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                    pointing_error_sigma=POINTING_ERROR_SIGMA)
 
     def generate_time_distribution(arrival_chance, p_link):
         def time_distribution(source):
