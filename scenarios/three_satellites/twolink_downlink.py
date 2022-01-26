@@ -4,68 +4,14 @@ from world import World
 from protocol import TwoLinkProtocol
 from events import EntanglementSwappingEvent
 import libs.matrix as mat
-from libs.aux_functions import apply_single_qubit_map, y_noise_channel, z_noise_channel, w_noise_channel, distance
-from consts import ETA_ATM_PI_HALF_780_NM
+from libs.aux_functions import apply_single_qubit_map, w_noise_channel, distance
+from scenarios.three_satellites.common_functions import alpha_of_eta, construct_dephasing_noise_channel, construct_y_noise_channel, eta_dif, eta_atm, elevation_curved
 from consts import AVERAGE_EARTH_RADIUS as R_E
 from consts import SPEED_OF_LIGHT_IN_VACCUM as C
 from functools import lru_cache
 from noise import NoiseModel, NoiseChannel
 from quantum_objects import SchedulingSource, Station
-
-
-def construct_dephasing_noise_channel(dephasing_time):
-    def lambda_dp(t):
-        return (1 - np.exp(-t / dephasing_time)) / 2
-
-    def dephasing_noise_channel(rho, t):
-        return z_noise_channel(rho=rho, epsilon=lambda_dp(t))
-
-    return dephasing_noise_channel
-
-
-def construct_y_noise_channel(epsilon):
-    return lambda rho: y_noise_channel(rho=rho, epsilon=epsilon)
-
-
-def construct_w_noise_channel(epsilon):
-    return lambda rho: w_noise_channel(rho=rho, alpha=(1 - epsilon))
-
-
-def alpha_of_eta(eta, p_d):
-    return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
-
-
-def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius):
-    # calculated by simple geometry, because gaussian effects do not matter much
-    x = sender_aperture_radius + distance * np.tan(divergence_half_angle)
-    arriving_fraction = receiver_aperture_radius**2 / x**2
-    if arriving_fraction > 1:
-        arriving_fraction = 1
-    return arriving_fraction
-
-
-def eta_atm(elevation):
-    # eta of pi/2 to the power of csc(theta), equation (A4) in https://arxiv.org/abs/2006.10636
-    # eta of pi/2 (i.e. straight up) is ~0.8 for 780nm wavelength.
-    if elevation < 0:
-        return 0
-    return ETA_ATM_PI_HALF_780_NM**(1 / np.sin(elevation))
-
-
-def sat_dist_curved(ground_dist, h):
-    # ground dist refers to distance between station and the "shadow" of the satellite
-    alpha = ground_dist / R_E
-    L = np.sqrt(R_E**2 + (R_E + h)**2 - 2 * R_E * (R_E + h) * np.cos(alpha))
-    return L
-
-
-def elevation_curved(ground_dist, h):
-    # ground dist refers to distance between station and the "shadow" of the satellite
-    alpha = ground_dist / R_E
-    L = np.sqrt(R_E**2 + (R_E + h)**2 - 2 * R_E * (R_E + h) * np.cos(alpha))
-    beta = np.arcsin(R_E / L * np.sin(alpha))
-    gamma = np.pi - alpha - beta
-    return gamma - np.pi / 2
+from warnings import warn
 
 
 class MultiMemoryProtocol(TwoLinkProtocol):
@@ -178,6 +124,11 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
         DIVERGENCE_THETA = params["DIVERGENCE_THETA"]
     except KeyError as e:
         raise Exception('params["DIVERGENCE_THETA"] is a mandatory argument').with_traceback(e.__traceback__)
+    try:
+        POINTING_ERROR_SIGMA = params["POINTING_ERROR_SIGMA"]
+    except KeyError:
+        warn('params["POINTING_ERROR_SIGMA"] is not defined, assuming zero.')
+        POINTING_ERROR_SIGMA = 0
 
     def position_from_angle(radius, angle):
         return radius * np.array([np.sin(angle), np.cos(angle)])
@@ -200,22 +151,26 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1, first_satell
                             * eta_dif(distance=distance(station_a_position, first_satellite_position),
                                       divergence_half_angle=DIVERGENCE_THETA,
                                       sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                      receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                      receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                      pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_left_center = eta_dif(distance=distance(first_satellite_position, second_satellite_position),
                                          divergence_half_angle=DIVERGENCE_THETA,
                                          sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                         receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                         receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                         pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_left = arrival_chance_a_left * arrival_chance_left_center
     elevation_right = elevation_curved(ground_dist=np.abs(station_b_angle - third_satellite_angle) * R_E, h=ORBITAL_HEIGHT)
     arrival_chance_b_right = eta_atm(elevation_right) \
                              * eta_dif(distance=distance(station_b_position, third_satellite_position),
                                        divergence_half_angle=DIVERGENCE_THETA,
                                        sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                       receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                       receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                       pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_right_center = eta_dif(distance=distance(third_satellite_position, second_satellite_position),
                                           divergence_half_angle=DIVERGENCE_THETA,
                                           sender_aperture_radius=SENDER_APERTURE_RADIUS,
-                                          receiver_aperture_radius=RECEIVER_APERTURE_RADIUS)
+                                          receiver_aperture_radius=RECEIVER_APERTURE_RADIUS,
+                                          pointing_error_sigma=POINTING_ERROR_SIGMA)
     arrival_chance_right = arrival_chance_b_right * arrival_chance_right_center
 
     def imperfect_bsm_err_func(four_qubit_state):
