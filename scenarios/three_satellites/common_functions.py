@@ -1,5 +1,6 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 import numpy as np
+from scipy.integrate import quad, nquad
 from consts import ETA_ATM_PI_HALF_780_NM
 from consts import AVERAGE_EARTH_RADIUS as R_E
 from libs.aux_functions import y_noise_channel, z_noise_channel, w_noise_channel
@@ -27,23 +28,44 @@ def alpha_of_eta(eta, p_d):
     return eta * (1 - p_d) / (1 - (1 - eta) * (1 - p_d)**2)
 
 
-def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=None, pointing_error_std=None):
-    if pointing_error is None and pointing_error_std is None:
-        return _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=0)
-    elif pointing_error is not None and pointing_error_std is not None:
-        raise ValueError(f"Only one of pointing_error or pointing_error_std can be specified. eta_dif was called with {pointing_error=}, {pointing_error_std=}")
-    elif pointing_error is not None:
-        return _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=pointing_error)
+def eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, wavelength=780e-9, pointing_error_sigma=0):
+    w_0 = wavelength / (divergence_half_angle * np.pi)
+    w_z = w_0 * np.sqrt(1 + (divergence_half_angle / w_0 * distance)**2)
+    P_0 = 1 / 2 * np.pi * w_0**2
+
+    def I_1(r):
+        return (w_0 / w_z)**2 * np.exp(-2 * r**2 / w_z**2)
+
+    if pointing_error_sigma != 0 and distance != 0:
+        assert pointing_error_sigma > 0
+        assert distance > 0
+        convolution_sigma = distance * pointing_error_sigma
+
+        def g(r):
+            return 1 / (2 * np.pi * convolution_sigma**2) * np.exp(-r**2 / (2 * convolution_sigma**2))
+
+        def I_2(r):
+            # 2d convolution with pointing error distribution
+            def integrand_convolution(r_prime, theta_prime):
+                r_dif = np.sqrt(r**2 + r_prime**2 - 2 * r * r_prime * np.cos(theta_prime))  # law of cosines
+                return r_prime * I_1(r_prime) * g(r_dif)
+            return nquad(integrand_convolution, [(0, np.inf), (0, 2 * np.pi)])[0]
+
+        intensity = I_2
     else:
-        def weighted_distribution(x):
-            return 1 / (2 * np.pi * pointing_error_std**2) * np.exp(-x**2 / (2 * pointing_error_std**2)) * _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error=x)
-        # TODO: convolution
+        intensity = I_1
+
+    def integrand_receiver(r):
+        return r * intensity(r)
+
+    P = 2 * np.pi * quad(integrand_receiver, 0, receiver_aperture_radius)[0]
+    return P / P_0
 
 
-def _eta_dif(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius, pointing_error):
+def _eta_dif_cone(distance, divergence_half_angle, sender_aperture_radius, receiver_aperture_radius):
     # calculated by simple geometry, because gaussian effects do not matter much
     x = sender_aperture_radius + distance * np.tan(divergence_half_angle)
-    arriving_fraction = receiver_aperture_radius**2 * np.cos(pointing_error)**2 / x**2
+    arriving_fraction = receiver_aperture_radius**2 / x**2
     if arriving_fraction > 1:
         arriving_fraction = 1
     return arriving_fraction
