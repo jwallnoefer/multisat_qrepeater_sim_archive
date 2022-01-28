@@ -385,7 +385,7 @@ if __name__ == "__main__":
         labels = [str(int(base_multipliers[0] * 10)) for base_multipliers in configurations]
         plot_info = {}
         custom_variations = {}
-        variations = np.linspace(0, 0.4, num=96 / 2 + 1)
+        variations = np.linspace(0, 0.4, num=96 // 2 + 1)
         for base_multipliers, label in zip(configurations, labels):
             print("%=====================%")
             print(f"configuration={label}")
