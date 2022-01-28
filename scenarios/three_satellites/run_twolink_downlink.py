@@ -1,8 +1,7 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.three_satellites.twolink_downlink import run
-from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved
 from scenarios.three_satellites_common_parameters import base_params
-from libs.aux_functions import assert_dir, standard_bipartite_evaluation, save_result
+from libs.aux_functions import save_result
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
@@ -59,11 +58,6 @@ if __name__ == "__main__":
         cutoff_multiplier = 0.1
         min_cutoff_time = cutoff_multiplier * params["T_DP"]
         first_satellite_multipliers = np.linspace(0, 0.5, num=6)
-        # first_satellite_multipliers = first_satellite_multipliers[4:]
-        # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-        # length_cutoffs = [7000e3, 6000e3, 5500e3, 5000e3, 3800e3]
-        # length_starts = [4400e3] * 4 + [3620e3]
-        # custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
         custom_length_lists = [custom_length_lists[key] for key in first_satellite_multipliers]
@@ -81,7 +75,7 @@ if __name__ == "__main__":
                 output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-    elif case_number in [1, 2, 3, 4]:
+    elif case_number in [2, 3, 4]:
         out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
         thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
         params = dict(base_params)
@@ -92,21 +86,6 @@ if __name__ == "__main__":
         cutoff_multiplier = 0.1
         min_cutoff_time = cutoff_multiplier * params["T_DP"]
         first_satellite_multipliers = [0.0, 0.2]
-        # first_satellite_multipliers = [0.000, 0.200, 0.400, 0.500]
-        # first_satellite_multipliers = first_satellite_multipliers[2:]
-        # length_cutoffs = [max_length_horizon(fsm) for fsm in first_satellite_multipliers]
-        # cutoff_dict = {1: [4400e3, 4400e3],
-        #                2: [4400e3, 4400e3],
-        #                3: [3000e3] * 2,
-        #                4: [2200e3] * 2}
-        # start_dict = {#1: [2200e3] * 4,
-        #               #2: [2200e3] * 4,
-        #               3: [2200e3] * 4,
-        #               # 4: [2200e3, 2200e3, 2200e3, 1390e3]
-        #               }
-        # length_cutoffs = cutoff_dict[case_number]
-        # length_starts = start_dict[case_number]
-        # custom_length_lists = [length_list[np.logical_and(length_list <= len_cutoff, length_list > length_start)] for len_cutoff, length_start in zip(length_cutoffs, length_starts)]
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
             custom_length_lists = pickle.load(f)
         custom_length_lists = [custom_length_lists[key] for key in first_satellite_multipliers]
@@ -124,7 +103,7 @@ if __name__ == "__main__":
                 output_path = os.path.join(out_path, "%.3f_first_sat" % multiplier)
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-    elif case_number in [5, 6]:
+    elif case_number in [6]:
         out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
         memories = {5: 100, 6: 1000}
         params = dict(base_params)
@@ -237,20 +216,25 @@ if __name__ == "__main__":
         num_memories = 1000
         configurations = [np.array([-0.1, 0.5, 1.1]), np.array([0, 0.5, 1]),
                           np.array([0.1, 0.5, 0.9]), np.array([0.2, 0.5, 0.8])]
-        num_calls = 17
-        variations = np.linspace(-0.2, 0.2, num=num_calls)
-        max_iter = 1e3
+        labels = [str(int(base_multipliers[0] * 10)) for base_multipliers in configurations]
+        path_to_custom_variations = path_to_custom_lengths
+        # num_calls = 97
+        # variations = np.linspace(-0.2, 0.2, num=num_calls)
+        with open(os.path.join(path_to_custom_variations, f"custom_variations_{case_number}.pickle"), "rb") as f:
+            custom_variations = pickle.load(f)
+        custom_variations
+        max_iter = 1e5
         start_time = time()
         result = {}
         with Pool(num_processes) as pool:
             for base_multipliers in configurations:
-                multipliers = [base_multipliers + x for x in variations]
+                multipliers = [base_multipliers + x for x in custom_variations]
                 aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, multipliers)
                 result[base_multipliers[0]] = pool.starmap_async(do_the_thing_alternate, aux_list, chunksize=1)
             pool.close()
             for base_multipliers in configurations:
                 label = str(int(base_multipliers[0] * 10))
-                data_series = pd.Series(result[base_multipliers[0]].get(), index=variations)
+                data_series = pd.Series(result[base_multipliers[0]].get(), index=custom_variations)
                 output_path = os.path.join(out_path, f"{label}_configuration")
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))

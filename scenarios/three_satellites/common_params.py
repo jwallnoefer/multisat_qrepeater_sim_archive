@@ -21,20 +21,18 @@ DIVERGENCE_THETA = 3e-6  # beam divergence_half_angle
 
 POINTING_ERROR_SIGMA = 1e-6
 
-# background light calculation translated from Mustafa's Matlab file
-R_MOON = 1.737e6
-D_MOON = 3.844e8
-A_MOON = np.pi * R_MOON**2
 
-fov = A_MOON / D_MOON**2  # field-of-view in steradian
+# background light calculation translated from Mustafa's Matlab file
+fov = 3.14 * 1e-10  # field-of-view in steradian
 h = 6.62e-34  # Planck constant
 wavelength = 780e-9
 nu = C / wavelength  # frequency of light
 t = 1e-6  # time window of detection
 RELATIVE_BRIGHTNESS = 1e-5
-H_B = 200  # Wm^-2 Sr µm
+H_B = 150e-6  # Wm^-2 Sr m
 A_REC = np.pi * RECEIVER_APERTURE_RADIUS**2  # telescope area
-B_FILT = 0.1e-9  # filter bandwidth
+B_FILT = 0.02e-9  # filter bandwidth (is a length) corresponding to 10 GHz
+
 
 P = RELATIVE_BRIGHTNESS * H_B * fov * A_REC * B_FILT
 BACKGROUND_NOISE = t * P / (h * nu)  # noise per detection window
