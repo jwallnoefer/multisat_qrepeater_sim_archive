@@ -392,7 +392,7 @@ if __name__ == "__main__":
             keys = []
             run_times = []
             multipliers = [base_multipliers + x for x in variations]
-            for satellite_multipliers in multipliers:
+            for i, satellite_multipliers in enumerate(multipliers):
                 start_time = time()
                 print("----------")
                 p, w = run(length=length, max_iter=1000, params=params,
@@ -411,7 +411,8 @@ if __name__ == "__main__":
                     break
             plot_info[label] = {}
             plot_info[label]["variations"] = variations[:i + 1]
-            custom_variations[label] = variations[:i + 1]
+            used_variations = variations[:i + 1]
+            custom_variations[label] = np.concatenate([-np.flip(used_variations[1:]), used_variations])
             plot_info[label]["keys"] = keys
             plot_info[label]["run_times"] = run_times
         # save custom length_lists
