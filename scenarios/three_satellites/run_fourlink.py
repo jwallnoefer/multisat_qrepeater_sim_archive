@@ -1,7 +1,7 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.three_satellites.fourlink import run
 from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved
-from scenarios.three_satellites_common_parameters import base_params
+from scenarios.three_satellites.common_params import base_params
 from libs.aux_functions import assert_dir, standard_bipartite_evaluation, save_result
 import numpy as np
 import matplotlib.pyplot as plt
