@@ -1,8 +1,7 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.three_satellites.fourlink import run
-from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved
 from scenarios.three_satellites.common_params import base_params
-from libs.aux_functions import assert_dir, standard_bipartite_evaluation, save_result
+from libs.aux_functions import save_result
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
@@ -34,6 +33,7 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
     np.random.seed()
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=first_satellite_ground_dist_multiplier)
     return p.data
+
 
 def do_the_thing_alternate(length, max_iter, params, cutoff_time, num_memories, satellite_multipliers):
     np.random.seed()
@@ -206,20 +206,25 @@ if __name__ == "__main__":
         num_memories = 1000
         configurations = [np.array([-0.1, 0.5, 1.1]), np.array([0, 0.5, 1]),
                           np.array([0.1, 0.5, 0.9]), np.array([0.2, 0.5, 0.8])]
-        num_calls = 17
-        variations = np.linspace(-0.2, 0.2, num=num_calls)
-        max_iter = 1e3
+        labels = [str(int(base_multipliers[0] * 10)) for base_multipliers in configurations]
+        path_to_custom_variations = path_to_custom_lengths
+        # num_calls = 97
+        # variations = np.linspace(-0.2, 0.2, num=num_calls)
+        with open(os.path.join(path_to_custom_variations, f"custom_variations_{case_number}.pickle"), "rb") as f:
+            custom_variations = pickle.load(f)
+        custom_variations = [custom_variations[label][1:-1] for label in labels]
+        max_iter = 1e4
         start_time = time()
         result = {}
         with Pool(num_processes) as pool:
-            for base_multipliers in configurations:
+            for base_multipliers, variations, label in zip(configurations, custom_variations, labels):
                 multipliers = [base_multipliers + x for x in variations]
+                num_calls = len(multipliers)
                 aux_list = zip([length] * num_calls, [max_iter] * num_calls, [params] * num_calls, [cutoff_time] * num_calls, [num_memories] * num_calls, multipliers)
-                result[base_multipliers[0]] = pool.starmap_async(do_the_thing_alternate, aux_list, chunksize=1)
+                result[label] = pool.starmap_async(do_the_thing_alternate, aux_list, chunksize=1)
             pool.close()
-            for base_multipliers in configurations:
-                label = str(int(base_multipliers[0] * 10))
-                data_series = pd.Series(result[base_multipliers[0]].get(), index=variations)
+            for base_multipliers, variations, label in zip(configurations, custom_variations, labels):
+                data_series = pd.Series(result[label].get(), index=variations)
                 output_path = os.path.join(out_path, f"{label}_configuration")
                 save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))

@@ -1,7 +1,7 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 from scenarios.three_satellites.twolink_downlink import run
 from scenarios.three_satellites.common_params import base_params
-from libs.aux_functions import assert_dir, standard_bipartite_evaluation, save_result
+from libs.aux_functions import assert_dir, standard_bipartite_evaluation
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
@@ -29,6 +29,7 @@ def reorder_runs(run_list):
     # strip extra nesting layer
     new_run_list = [run for nested_list in my_list for run in nested_list]
     return new_run_list
+
 
 if __name__ == "__main__":
     case_number = int(sys.argv[1])

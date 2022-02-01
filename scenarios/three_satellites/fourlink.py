@@ -1,18 +1,16 @@
 import os, sys; sys.path.insert(0, os.path.abspath("."))
 import numpy as np
 from world import World
-from protocol import Protocol, MessageReadingProtocol
+from protocol import MessageReadingProtocol
 from events import SourceEvent, EntanglementSwappingEvent
 import libs.matrix as mat
-from libs.aux_functions import apply_single_qubit_map, y_noise_channel, z_noise_channel, w_noise_channel, distance
+from libs.aux_functions import apply_single_qubit_map, w_noise_channel, distance
 from scenarios.three_satellites.common_functions import alpha_of_eta, construct_dephasing_noise_channel, construct_y_noise_channel, eta_dif, eta_atm, elevation_curved
-from consts import ETA_ATM_PI_HALF_780_NM
 from consts import AVERAGE_EARTH_RADIUS as R_E
 from consts import SPEED_OF_LIGHT_IN_VACCUM as C
 from functools import lru_cache
 from noise import NoiseModel, NoiseChannel
 from quantum_objects import SchedulingSource, Station
-from functools import lru_cache
 from collections import defaultdict
 import pandas as pd
 from warnings import warn
