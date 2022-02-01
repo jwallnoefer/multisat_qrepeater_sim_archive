@@ -29,7 +29,7 @@ wavelength = 780e-9
 nu = C / wavelength  # frequency of light
 t = 1e-6  # time window of detection
 RELATIVE_BRIGHTNESS = 1e-5
-H_B = 150e-6  # Wm^-2 Sr m
+H_B = 150e6  # W / (m^2 Sr m)
 A_REC = np.pi * RECEIVER_APERTURE_RADIUS**2  # telescope area
 B_FILT = 0.02e-9  # filter bandwidth (is a length) corresponding to 10 GHz
 
