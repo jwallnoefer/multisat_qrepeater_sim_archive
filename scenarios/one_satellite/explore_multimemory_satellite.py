@@ -256,7 +256,7 @@ if __name__ == "__main__":
         print("%=======================================%")
         print(f"The whole case {case_number} finished exploring in {(time() - total_begin_time) / 60:.2f} minutes.")
         # now plot keys
-        for orbital_heights, label in zip(orbital_height, labels):
+        for orbital_height, label in zip(orbital_heights, labels):
             x = plot_info[orbital_height]["variations"]
             y = plot_info[orbital_height]["keys"]
             plt.scatter(x, y, s=10, label=f"orbital_height={label}km")
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         plt.savefig(os.path.join(output_path, f"keys_{case_number}.png"))
         plt.close()
         # now plot run_times
-        for orbital_height, label in zip(orbital_height, labels):
+        for orbital_height, label in zip(orbital_heights, labels):
             x = plot_info[orbital_height]["variations"]
             y = plot_info[orbital_height]["run_times"]
             plt.scatter(x, y, s=10, label=f"orbital_height={label}km")
