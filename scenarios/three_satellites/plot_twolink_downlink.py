@@ -2,7 +2,7 @@ import os, sys; sys.path.insert(0, os.path.abspath("."))
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
 
 
 def e91_rate(length, divergence_half_angle=2e-6, orbital_height=400e3):

@@ -4,7 +4,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import rsmf
 import pandas as pd
-from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
 
 project_title = "satellite_repeater"
 project_title = project_title + ".tex"

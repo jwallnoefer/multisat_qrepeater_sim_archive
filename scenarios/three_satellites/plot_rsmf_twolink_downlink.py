@@ -4,7 +4,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import rsmf
 import pandas as pd
-from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
 
 project_title = "satellite_repeater"
 project_title = project_title + ".tex"
@@ -274,7 +274,7 @@ for idx, configuration in enumerate(configurations):
     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
     plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"{configuration=}")
 plt.yscale("log")
-plt.ylim(1e-1, 1e4)
+# plt.ylim(1e-1, 1e4)
 # plt.legend()
 plt.xlabel("Offset [ground distance]", color=font_color)
 plt.ylabel("Key / time [Hz]", color=font_color)
