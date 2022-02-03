@@ -211,7 +211,8 @@ if __name__ == "__main__":
         length = 4400e3
         cutoff_multiplier = 0.1
         num_memories = 1000
-        orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
+        # orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
+        orbital_heights = [600e3, 1000e3, 1500e3, 2000e3]
         labels = [int(x / 1000) for x in orbital_heights]
         plot_info = {}
         custom_variations = {}
