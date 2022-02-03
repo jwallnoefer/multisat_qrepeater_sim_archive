@@ -229,7 +229,7 @@ if __name__ == "__main__":
             for i, position_multiplier in enumerate(multipliers):
                 start_time = time()
                 print("----------")
-                p, w = run(length=length, max_iter=100, params=params,
+                p, w = run(length=length, max_iter=1000, params=params,
                            cutoff_time=cutoff_time, num_memories=num_memories,
                            position_multiplier=position_multiplier,
                            return_world=True)
