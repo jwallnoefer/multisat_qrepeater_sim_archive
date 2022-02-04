@@ -120,7 +120,6 @@ if __name__ == "__main__":
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
     elif case_number == 9:
         # Different positions along the orbit of the satellite.
-        out_path
         out_path = os.path.join(result_path, "satellite_path")
         params = dict(base_params)
         length = 4400e3
