@@ -32,10 +32,9 @@ if __name__ == "__main__":
     path_to_custom_lengths = os.path.join(result_path, "explore")
     if case_number in [1, 2, 3, 4]:
         out_path = os.path.join(result_path, "divergence_theta", str(sys.argv[1]))
-        thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
+        thetas = {1: 3e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
         params = dict(base_params)
         params["DIVERGENCE_THETA"] = thetas[case_number]
-        params["T_DP"] = 100e-3
         num_memories = 1000
         length_list = np.linspace(0, 4400e3, num=96)
         with open(os.path.join(path_to_custom_lengths, f"custom_lengths_{case_number}.pickle"), "rb") as f:
@@ -55,11 +54,10 @@ if __name__ == "__main__":
             output_path = out_path
             save_result(data_series=data_series, output_path=output_path)#, mode="append")
         print("The whole run took %.2f minutes." % ((time() - start_time) / 60))
-    elif case_number in [5, 6]:
+    elif case_number in [6]:
         out_path = os.path.join(result_path, "memories", str(sys.argv[1]))
         memories = {5: 100, 6: 1000}
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 5e-6
         num_memories = memories[case_number]
         dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
         length_list = np.linspace(0, 4400e3, num=96)
@@ -90,8 +88,6 @@ if __name__ == "__main__":
         #case 7: varying orbital heights
         out_path = os.path.join(result_path, "orbital_heights")
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 2e-6
-        params["T_DP"] = 100e-3
         num_memories = 1000
         orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
         # length_list = np.linspace(0, 8800e3, num=96)
@@ -121,11 +117,8 @@ if __name__ == "__main__":
     elif case_number == 9:
         # Different positions along the orbit of the satellite.
         out_path = os.path.join(result_path, "satellite_path")
-        params = dict(base_params)
         length = 4400e3
         cutoff_multiplier = 0.1
-        min_cutoff_time = cutoff_multiplier * params["T_DP"]
-        cutoff_time = max(min_cutoff_time, 4 * length / C)
         num_memories = 1000
         orbital_heights = [600e3, 1000e3, 1500e3, 2000e3]
         labels = [int(x / 1000) for x in orbital_heights]
@@ -139,6 +132,10 @@ if __name__ == "__main__":
         with Pool(num_processes) as pool:
             for orbital_height, variations in zip(orbital_heights, custom_variations):
                 multipliers = [0.5 + x for x in variations]
+                params = dict(base_params)
+                params["ORBITAL_HEIGHT"] = orbital_height
+                min_cutoff_time = cutoff_multiplier * params["T_DP"]
+                cutoff_time = max(min_cutoff_time, 4 * length / C)
                 num_calls = len(multipliers)
                 aux_list = zip([length] * num_calls,
                                [max_iter] * num_calls,

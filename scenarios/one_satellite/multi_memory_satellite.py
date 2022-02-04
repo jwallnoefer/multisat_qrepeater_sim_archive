@@ -137,6 +137,9 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1,
                                     pointing_error_sigma=POINTING_ERROR_SIGMA)
                             * eta_atm(elevation=elevation_right))
 
+    if arrival_chance_left == 0 or arrival_chance_right == 0:
+        raise ValueError(f"run encountered params leading to 0 arrival chance, {length=}, {max_iter=}, {params=}, {cutoff_time=}, {num_memories=}, {position_multiplier=}, {mode=}, {return_world=}")
+
     def imperfect_bsm_err_func(four_qubit_state):
         return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
