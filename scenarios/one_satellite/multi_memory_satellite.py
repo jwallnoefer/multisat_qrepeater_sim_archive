@@ -144,7 +144,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1,
         return LAMBDA_BSM * four_qubit_state + (1 - LAMBDA_BSM) * mat.reorder(mat.tensor(mat.ptrace(four_qubit_state, [1, 2]), mat.I(4) / 4), [0, 2, 3, 1])
 
     def time_distribution_left(source):
-        comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
+        comm_distance = np.max([distance(source, source.target_stations[0]), distance(source, source.target_stations[1])
         comm_time = 2 * comm_distance / C
         eta = P_LINK * arrival_chance_left
         eta_effective = 1 - (1 - eta) * (1 - P_D)**2
@@ -153,7 +153,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1,
         return random_num * trial_time, random_num
 
     def time_distribution_right(source):
-        comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
+        comm_distance = np.max([distance(source, source.target_stations[0]), distance(source, source.target_stations[1])
         comm_time = 2 * comm_distance / C
         eta = P_LINK * arrival_chance_right
         eta_effective = 1 - (1 - eta) * (1 - P_D)**2
@@ -164,7 +164,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1,
     @lru_cache()  # CAREFUL: only makes sense if positions and errors do not change!
     def state_generation_left(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
-        comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
+        comm_distance = np.max([distance(source, source.target_stations[0]), distance(source, source.target_stations[1])
         storage_time = 2 * comm_distance / C
         for idx, station in enumerate(source.target_stations):
             if station.memory_noise is not None:  # dephasing that has accrued while other qubit was travelling
@@ -177,7 +177,7 @@ def run(length, max_iter, params, cutoff_time=None, num_memories=1,
     @lru_cache()  # CAREFUL: only makes sense if positions and errors do not change!
     def state_generation_right(source):
         state = np.dot(mat.phiplus, mat.H(mat.phiplus))
-        comm_distance = np.max([np.abs(source.position - source.target_stations[0].position), np.abs(source.position - source.target_stations[1].position)])
+        comm_distance = np.max([distance(source, source.target_stations[0]), distance(source, source.target_stations[1])
         storage_time = 2 * comm_distance / C
         for idx, station in enumerate(source.target_stations):
             if station.memory_noise is not None:  # dephasing that has accrued while other qubit was travelling
