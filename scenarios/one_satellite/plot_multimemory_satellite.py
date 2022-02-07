@@ -2,7 +2,21 @@ import os, sys; sys.path.insert(0, os.path.abspath("."))
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+
+# Set color scheme
+color_list = [
+'#56B4E9',
+'#E69F00',
+'#CC79A7',
+'#F0E442',
+'#009E73',
+'#D55E00',
+'#0072B2',
+'#000000'
+]
+
+font_color = "#000000"
 
 
 def db(x):
@@ -36,7 +50,7 @@ for i, theta in thetas.items():
     except FileNotFoundError:
         continue
     x = df.index / 1000
-    y = np.real_if_close(np.array(df["key_per_time"], dtype=np.complex)) / 2
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
     plt.scatter(x, y, marker="o", s=10, label=f"theta={theta * 1e6}µrad")
 
 xx = np.linspace(0, 44e5, num=500)
@@ -65,7 +79,7 @@ for i, num_memories in memories.items():
         except FileNotFoundError:
             continue
         x = df.index / 1000
-        y = np.real_if_close(np.array(df["key_per_time"], dtype=np.complex)) / 2
+        y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
         plt.scatter(x, y, marker="o", s=10, label=f"t_dp={t_dp * 1e3}ms")
     xx = np.linspace(0, 44e5, num=500)
     yy = [e91_rate(i) for i in xx]
@@ -92,7 +106,7 @@ for orbital_height in orbital_heights:
     except FileNotFoundError:
         continue
     x = df.index / 1000
-    y = np.real_if_close(np.array(df["key_per_time"], dtype=np.complex)) / 2
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
     plt.scatter(x, y, marker="o", s=10, label=f"h={orbital_height / 1e3}km")
 xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
@@ -108,6 +122,30 @@ manager = plt.get_current_fig_manager()
 manager.window.maximize()
 plt.show()
 
+# now case 9
+# case 9 with changing satellite postitions
+# fig = formatter.figure(width_ratio=1.0, wide=False)
+out_path = os.path.join(result_path, "satellite_path")
+orbital_heights = [600e3, 1000e3, 1500e3, 2000e3]
+labels = [int(x / 1000) for x in orbital_heights]
+for idx, (orbital_height, label) in enumerate(zip(orbital_heights, labels)):
+    output_path = os.path.join(out_path, f"{label}_orbital_height")
+    df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+    x = df.index
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+    plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"orbital_height={label}km")
+plt.yscale("log")
+# plt.ylim(1e-1, 1e4)
+# plt.legend()
+plt.xlabel("Offset [ground distance]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
+plt.tight_layout()
+plt.grid()
+plt.legend()
+figure_name = "configurations"
+figure_name = figure_name + ".pdf"
+plt.savefig(os.path.join(result_path, figure_name))
+print(f"Plot saved as {figure_name}")
 
 # result_path = os.path.join("results", "multimemory_satellite_cutoff")
 # for cutoff_multiplier in [0.001, 0.005, 0.010, 0.020, 0.030, 0.050, 0.100, 0.250, 0.500]:
