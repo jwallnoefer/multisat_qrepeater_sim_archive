@@ -116,5 +116,5 @@ for path, orbital_height in zip(paths, orbital_heights):
     print("Now processing: ", path)
     data_series = pd.read_pickle(os.path.join(path, "raw_data.bz2"))
     output += [optimize_rate_from_data_series(data_series, orbital_height=orbital_height, ground_distance=ground_distance)]
-res = pd.Series(data=output, index=configurations)
+res = pd.Series(data=output, index=orbital_heights)
 res.to_csv(os.path.join(result_path, "optimized_effective_rate.csv"))
