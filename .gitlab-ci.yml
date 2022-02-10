@@ -1,0 +1,23 @@
+stages:
+  - test
+
+test-pipenv:
+  stage: test
+  image: $RELEASE
+  script:
+    - python3 -m pip install pipenv
+    - pipenv --python 3
+    - pipenv sync
+    - pipenv run python -m unittest
+  parallel:
+    matrix: 
+      - RELEASE: [bullseye, stable]
+
+test-standard:
+  stage: test
+  image: $RELEASE
+  script:
+    - python3 -m unittest
+  parallel:
+    matrix: 
+      - RELEASE: [buster-python, bullseye-python, stable-python, oldstable-python]
