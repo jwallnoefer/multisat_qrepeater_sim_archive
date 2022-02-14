@@ -38,6 +38,7 @@ def do_the_thing(length, max_iter, params, cutoff_time, num_memories, first_sate
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, first_satellite_ground_dist_multiplier=first_satellite_ground_dist_multiplier)
     return p.data
 
+
 def do_the_thing_alternate(length, max_iter, params, cutoff_time, num_memories, satellite_multipliers):
     np.random.seed()
     p = run(length=length, max_iter=max_iter, params=params, cutoff_time=cutoff_time, num_memories=num_memories, satellite_multipliers=satellite_multipliers)

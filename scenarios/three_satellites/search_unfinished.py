@@ -6,9 +6,14 @@ import pickle
 
 root_dir = os.path.join("results", "three_satellites")
 length_list = np.linspace(0, 8800e3, num=96)
+variations = np.linspace(-0.4, 0.4, num=96 + 1)
+variations_plus = np.linspace(0, 0.4, num=96 // 2 + 1)
 
 
 def check_unfinished(df):
+    if 0.4 in df.index and np.allclose(df.index == variations):
+        # special case for case 9
+        return False
     if 8800e3 in df.index:
         return False
     if df["key_per_time"].iloc[-1] < 0:
@@ -54,6 +59,22 @@ def generate_case_tuple(subdir, data):
                 print(submatch.group("subcase"))
                 raise e
         length = length_list[len(data.index)]
+        return case_number, subcase, length
+    match = re.search("satellite_path", subdir)
+    if match:
+        case_number = 9
+        submatch = re.search("(?P<subcase>-?[0-9]+)_configuration", subdir)
+        label = submatch.submatch.group("subcase")
+        configuration_dict = {"-1": np.array([-0.1, 0.5, 1.1]),
+                              "0": np.array([0, 0.5, 1]),
+                              "1": np.array([0.1, 0.5, 0.9]),
+                              "2": np.array([0.2, 0.5, 0.8])
+                              }
+        base_multipliers = configuration_dict[label]
+        variation_index = (len(data.index) - 1) // 2 + 1
+        new_variation = variations_plus[variation_index]
+        subcase = (base_multipliers, new_variation, label)
+        length = 4400e3
         return case_number, subcase, length
 
 
