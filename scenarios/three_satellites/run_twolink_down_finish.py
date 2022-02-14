@@ -143,6 +143,7 @@ def run_finish(case_number, subcase, length):
         min_cutoff_time = cutoff_multiplier * params["T_DP"]
         cutoff_time = max(min_cutoff_time, 4 * length / C)
         num_memories = 1000
+        max_iter = 1e5
         base_multipliers, variation, label = subcase
         multipliers = base_multipliers + variation
         res = do_the_thing_alternate(length, max_iter, params, cutoff_time, num_memories, satellite_multipliers=multipliers)
