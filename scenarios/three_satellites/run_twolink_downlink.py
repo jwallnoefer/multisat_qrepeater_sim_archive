@@ -170,7 +170,7 @@ if __name__ == "__main__":
         # case 8: varying cutoff times to show optimizing this is important
         out_path = os.path.join(result_path, "cutoff_times")
         params = dict(base_params)
-        params["DIVERGENCE_THETA"] = 5e-6
+        params["DIVERGENCE_THETA"] = 6e-6
         first_satellite_multiplier = 0.0
         num_memories = 1000
         cutoff_multipliers = [None, 0.5, 0.2, 0.1, 0.05, 0.02]

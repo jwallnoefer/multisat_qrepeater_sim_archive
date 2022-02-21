@@ -40,9 +40,9 @@ def e91_eta(length, divergence_half_angle=2e-6, orbital_height=400e3):
 
 
 
-result_path = os.path.join("results", "one_satellite")
+result_path = os.path.join("results", "one_satellite_bright_night")
 scenario_str = "One Satellite"
-thetas = {1: 2e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
+thetas = {1: 3e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
 for i, theta in thetas.items():
     out_path = os.path.join(result_path, "divergence_theta", str(i))
     try:
@@ -57,7 +57,7 @@ xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
 plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
 plt.yscale("log")
-# plt.ylim(1e-4, 1e5)
+plt.ylim(1e-2, 1e7)
 plt.legend()
 plt.grid()
 plt.xlabel("ground distance [km]")

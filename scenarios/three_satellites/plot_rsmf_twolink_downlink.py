@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import rsmf
 import pandas as pd
 from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_params import base_params
 
 project_title = "satellite_repeater"
 project_title = project_title + ".tex"
@@ -26,13 +27,14 @@ color_list = [
 
 font_color = '#000000'
 
-def e91_rate(length, divergence_half_angle=2e-6, orbital_height=400e3):
+
+def e91_rate(length, divergence_half_angle=base_params["DIVERGENCE_THETA"], orbital_height=base_params["ORBITAL_HEIGHT"]):
     R_S = 20e6  # 20 MHz repetition rate
     eta_tot = e91_eta(length, divergence_half_angle=divergence_half_angle, orbital_height=orbital_height)
     return R_S * eta_tot
 
 
-def e91_eta(length, divergence_half_angle=2e-6, orbital_height=400e3):
+def e91_eta(length, divergence_half_angle=base_params["DIVERGENCE_THETA"], orbital_height=base_params["ORBITAL_HEIGHT"]):
     eta_det = 0.7
     sat_dist = sat_dist_curved(ground_dist=length / 2, h=orbital_height)
     elevation = elevation_curved(ground_dist=length / 2, h=orbital_height)
@@ -40,6 +42,10 @@ def e91_eta(length, divergence_half_angle=2e-6, orbital_height=400e3):
                * eta_dif(distance=sat_dist, divergence_half_angle=divergence_half_angle, sender_aperture_radius=0.15, receiver_aperture_radius=0.5)**2
                * eta_atm(elevation=elevation)**2)
     return eta_tot
+
+
+def e91_rate_pos(length, divergence_half_angle=base_params["DIVERGENCE_THETA"], orbital_height=base_params["ORBITAL_HEIGHT"], satellite_position=0.5)
+
 
 xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
@@ -162,7 +168,7 @@ xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
 plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
 plt.yscale("log")
-plt.ylim(1e-3, 0.5e5)
+plt.ylim(1e-1, 1e5)
 # plt.legend(loc='upper right', ncol=2)
 plt.grid()
 plt.xlabel("Ground distance $d$ [km]", color=font_color)
@@ -178,7 +184,7 @@ print(f"Plot saved as {figure_name}")
 # forth memories
 fig = formatter.figure(width_ratio=1.0, wide=False)
 memories = {6: 1000}
-dephasing_times = [2e-3, 3e-3, 4e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0] #[10e-3, 50e-3, 100e-3, 1.0]
+dephasing_times = [2e-3, 3e-3, 4e-3, 5e-3, 10e-3, 50e-3, 100e-3, 1.0]  # [10e-3, 50e-3, 100e-3, 1.0]
 dephasing_times.reverse()
 for i, num_memories in memories.items():
     out_path = os.path.join(result_path, "memories", str(i))
@@ -190,10 +196,7 @@ for i, num_memories in memories.items():
             continue
         x = df.index / 1000
         y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-        if t_dp in [2e-3, 3e-3]:
-            x = x[:-1]
-            y = y[:-1]
-        plt.scatter(x, y, c=color_list[idx] , marker="o", s=1, label=f"t_dp={t_dp * 1e3}ms")
+        plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"t_dp={t_dp * 1e3}ms")
 #     # # compare to one satellite
 #     # path = os.path.join("results", "one_satellite", "memories", str(i), "100_t_dp")
 #     # try:
