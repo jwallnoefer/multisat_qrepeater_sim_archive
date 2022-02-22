@@ -44,7 +44,8 @@ def e91_eta(length, divergence_half_angle=base_params["DIVERGENCE_THETA"], orbit
     return eta_tot
 
 
-def e91_rate_pos(length, divergence_half_angle=base_params["DIVERGENCE_THETA"], orbital_height=base_params["ORBITAL_HEIGHT"], satellite_position=0.5)
+def e91_rate_pos(length, divergence_half_angle=base_params["DIVERGENCE_THETA"], orbital_height=base_params["ORBITAL_HEIGHT"], satellite_position=0.5):
+    pass
 
 
 xx = np.linspace(0, 44e5, num=500)

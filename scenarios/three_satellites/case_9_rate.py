@@ -37,7 +37,13 @@ def effective_rate_from_raw_errors(data_frame, orbital_period, err_corr_ineff=1)
     effective_e_x = np.trapz(y=integrand_x, x=data_frame.index) / normalization
     effective_e_z = np.trapz(y=integrand_z, x=data_frame.index) / normalization
     effective_yield = normalization / orbital_period
-    return effective_yield * (1 - binary_entropy(effective_e_x) - err_corr_ineff * binary_entropy(effective_e_z))
+
+    raw_bits_per_pass = normalization
+    raw_bits_per_time = effective_yield
+    key_bits_per_pass = normalization * (1 - binary_entropy(effective_e_x) - err_corr_ineff * binary_entropy(effective_e_z))
+    key_bits_per_time = effective_yield * (1 - binary_entropy(effective_e_x) - err_corr_ineff * binary_entropy(effective_e_z))
+
+    return key_bits_per_pass, key_bits_per_time, raw_bits_per_pass, raw_bits_per_time
 
 
 def rate_from_data_series(data_series, orbital_height, ground_distance, err_corr_ineff=1):
@@ -62,7 +68,8 @@ def optimize_rate_from_data_series(data_series, orbital_height, ground_distance,
                                                       orbital_period=orbital_period,
                                                       err_corr_ineff=err_corr_ineff)
                        for df in shortened_dfs]
-    return np.max(effective_rates)
+
+    return max(effective_rates, key=lambda x: x[0])
 
 
 # first do the twolink cases
@@ -82,7 +89,7 @@ for path in paths:
     print("Now processing: ", path)
     data_series = pd.read_pickle(os.path.join(path, "raw_data.bz2"))
     output += [optimize_rate_from_data_series(data_series, orbital_height=orbital_height, ground_distance=ground_distance)]
-res = pd.Series(data=output, index=configurations)
+res = pd.DataFrame(data=output, index=configurations, columns=["key_bits_per_pass", "key_bits_per_time", "raw_bits_per_pass", "raw_bits_per_time"])
 res.to_csv(os.path.join(result_path, "optimized_effective_rate.csv"))
 
 # then same for fourlink case
@@ -102,7 +109,7 @@ for path in paths:
     print("Now processing: ", path)
     data_series = pd.read_pickle(os.path.join(path, "raw_data.bz2"))
     output += [optimize_rate_from_data_series(data_series, orbital_height=orbital_height, ground_distance=ground_distance)]
-res = pd.Series(data=output, index=configurations)
+res = pd.DataFrame(data=output, index=configurations, columns=["key_bits_per_pass", "key_bits_per_time", "raw_bits_per_pass", "raw_bits_per_time"])
 res.to_csv(os.path.join(result_path, "optimized_effective_rate.csv"))
 
 # do the one_satellite_case
@@ -116,5 +123,5 @@ for path, orbital_height in zip(paths, orbital_heights):
     print("Now processing: ", path)
     data_series = pd.read_pickle(os.path.join(path, "raw_data.bz2"))
     output += [optimize_rate_from_data_series(data_series, orbital_height=orbital_height, ground_distance=ground_distance)]
-res = pd.Series(data=output, index=orbital_heights)
+res = pd.DataFrame(data=output, index=orbital_heights, columns=["key_bits_per_pass", "key_bits_per_time", "raw_bits_per_pass", "raw_bits_per_time"])
 res.to_csv(os.path.join(result_path, "optimized_effective_rate.csv"))
