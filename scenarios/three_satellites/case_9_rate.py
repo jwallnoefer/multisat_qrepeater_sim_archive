@@ -2,11 +2,10 @@ import os, sys; sys.path.insert(0, os.path.abspath("."))
 import libs.matrix as mat
 from libs.aux_functions import binary_entropy
 from consts import AVERAGE_EARTH_RADIUS as R_E
+from consts import EARTH_MASS as M
+from consts import GRAVITATIONAL_CONSTANT as G
 import numpy as np
 import pandas as pd
-
-M = 5.972e24  # earth mass
-G = 6.67408e-11  # gravitational constant
 
 
 def raw_errors_from_data_frame(data_frame):
