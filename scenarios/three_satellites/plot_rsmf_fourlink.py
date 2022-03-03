@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import rsmf
 import pandas as pd
 from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_params import base_params
 
 project_title = "satellite_repeater"
 project_title = project_title + ".tex"
@@ -37,7 +38,7 @@ def e91_eta(length, divergence_half_angle=2e-6, orbital_height=400e3):
     sat_dist = sat_dist_curved(ground_dist=length / 2, h=orbital_height)
     elevation = elevation_curved(ground_dist=length / 2, h=orbital_height)
     eta_tot = (eta_det**2
-               * eta_dif(distance=sat_dist, divergence_half_angle=divergence_half_angle, sender_aperture_radius=0.15, receiver_aperture_radius=0.5)**2
+               * eta_dif(distance=sat_dist, divergence_half_angle=divergence_half_angle, sender_aperture_radius=0.15, receiver_aperture_radius=0.5, pointing_error_sigma=base_params["POINTING_ERROR_SIGMA"])**2
                * eta_atm(elevation=elevation)**2)
     return eta_tot
 
