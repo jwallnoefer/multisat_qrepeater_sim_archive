@@ -43,11 +43,11 @@ def e91_eta(length, divergence_half_angle=3e-6, orbital_height=400e3):
     return eta_tot
 
 
-result_path = os.path.join("results", "one_satellite")
+result_path = os.path.join("results", "one_satellite_bright_night")
 scenario_str = "One Satellite"
 fig = formatter.figure(width_ratio=1.0, wide=False)
 thetas = {1: 3e-6, 2: 4e-6, 3: 6e-6, 4: 8e-6}
-for i, theta in thetas.items():
+for idx, (i, theta) in enumerate(thetas.items()):
     out_path = os.path.join(result_path, "divergence_theta", str(i))
     try:
         df = pd.read_csv(os.path.join(out_path, "result.csv"), index_col=0)
@@ -55,7 +55,7 @@ for i, theta in thetas.items():
         continue
     x = df.index / 1000
     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-    plt.scatter(x, y, marker="o", s=1, label=f"theta={theta * 1e6}µrad")
+    plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"theta={theta * 1e6}µrad")
 
 xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
@@ -82,7 +82,7 @@ memories = {6: 1000}
 dephasing_times = [10e-3, 50e-3, 100e-3, 1.0]
 for i, num_memories in memories.items():
     out_path = os.path.join(result_path, "memories", str(i))
-    for t_dp in dephasing_times:
+    for idx, t_dp in enumerate(dephasing_times):
         output_path = os.path.join(out_path, "%d_t_dp" % int(t_dp * 1000))
         try:
             df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
@@ -90,7 +90,7 @@ for i, num_memories in memories.items():
             continue
         x = df.index / 1000
         y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-        plt.scatter(x, y, marker="o", s=1, label=f"t_dp={t_dp * 1e3}ms")
+        plt.scatter(x, y, marker="o", c=color_list[idx], s=1, label=f"t_dp={t_dp * 1e3}ms")
     xx = np.linspace(0, 44e5, num=500)
     yy = [e91_rate(i) for i in xx]
     plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
@@ -115,7 +115,7 @@ for i, num_memories in memories.items():
 fig = formatter.figure(width_ratio=1.0, wide=False)
 orbital_heights = [400e3, 600e3, 1000e3, 1500e3, 2000e3]
 out_path = os.path.join(result_path, "orbital_heights")
-for orbital_height in orbital_heights:
+for idx, orbital_height in enumerate(orbital_heights):
     output_path = os.path.join(out_path, "%d_orbital_height" % int(orbital_height / 1000))
     try:
         df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
@@ -123,7 +123,7 @@ for orbital_height in orbital_heights:
         continue
     x = df.index / 1000
     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-    plt.scatter(x, y, marker="o", s=1, label=f"h={orbital_height / 1e3}km")
+    plt.scatter(x, y, marker="o", c=color_list[idx], s=1, label=f"h={orbital_height / 1e3}km")
 xx = np.linspace(0, 44e5, num=500)
 yy = [e91_rate(i) for i in xx]
 plt.plot(xx / 1000, yy, linestyle="dashed", color="gray", label="E91 20MHz")
@@ -155,7 +155,7 @@ for idx, (orbital_height, label) in enumerate(zip(orbital_heights, labels)):
     df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
     x = df.index
     y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
-    plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"orbital_height={label}km")
+    plt.scatter(x, y, c=color_list[idx + 1], marker="o", s=1, label=f"orbital_height={label}km")
 plt.yscale("log")
 # plt.ylim(1e-1, 1e4)
 # plt.legend()
