@@ -4,7 +4,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import rsmf
 import pandas as pd
-from scenarios.one_satellite.multi_memory_satellite import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_functions import sat_dist_curved, elevation_curved, eta_atm, eta_dif
+from scenarios.three_satellites.common_params import base_params
 
 project_title = "satellite_repeater"
 project_title = project_title + ".tex"
@@ -37,7 +38,7 @@ def e91_eta(length, divergence_half_angle=2e-6, orbital_height=400e3):
     sat_dist = sat_dist_curved(ground_dist=length / 2, h=orbital_height)
     elevation = elevation_curved(ground_dist=length / 2, h=orbital_height)
     eta_tot = (eta_det**2
-               * eta_dif(distance=sat_dist, divergence_half_angle=divergence_half_angle, sender_aperture_radius=0.15, receiver_aperture_radius=0.5)**2
+               * eta_dif(distance=sat_dist, divergence_half_angle=divergence_half_angle, sender_aperture_radius=0.15, receiver_aperture_radius=0.5, pointing_error_sigma=base_params["POINTING_ERROR_SIGMA"])**2
                * eta_atm(elevation=elevation)**2)
     return eta_tot
 
@@ -221,6 +222,28 @@ figure_name = figure_name + ".pdf"
 plt.savefig(os.path.join(result_path, figure_name))
 print(f"Plot saved as {figure_name}")
 
+
+# case 9 with changing satellite postitions
+fig = formatter.figure(width_ratio=1.0, wide=False)
+out_path = os.path.join(result_path, "satellite_path")
+configurations = [-1, 0, 1, 2]
+for idx, configuration in enumerate(configurations):
+    output_path = os.path.join(out_path, f"{configuration}_configuration")
+    df = pd.read_csv(os.path.join(output_path, "result.csv"), index_col=0)
+    x = df.index
+    y = np.real_if_close(np.array(df["key_per_time"], dtype=complex)) / 2
+    plt.scatter(x, y, c=color_list[idx], marker="o", s=1, label=f"{configuration=}")
+plt.yscale("log")
+# plt.ylim(1e-1, 1e4)
+# plt.legend()
+plt.xlabel("Offset [ground distance]", color=font_color)
+plt.ylabel("Key / time [Hz]", color=font_color)
+plt.tight_layout()
+plt.grid()
+figure_name = "configurations"
+figure_name = figure_name + ".png"
+plt.savefig(os.path.join(result_path, figure_name))
+print(f"Plot saved as {figure_name}")
 
 
 # # rsmf stuff example
