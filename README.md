@@ -37,4 +37,4 @@ If you want to use the plot files use `pipenv sync --dev` instead (separate beca
 
 ## Related projects
 
-A separate release of the core simulation code as a python package is currently in preparation.
+An updated version of the core part of the simulation code has since been released separately and is available as a Python package: [https://github.com/jwallnoefer/requsim](https://github.com/jwallnoefer/requsim) 
